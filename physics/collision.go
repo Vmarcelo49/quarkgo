@@ -161,7 +161,7 @@ func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
                                 c.Position = p.GlobalPosition()
                                 // Normal should point from B→A (away from B, toward A)
                                 // edgeNormal points outward from A, so negate to get B→A
-                                c.Normal = edgeNormal.Neg()
+                                c.Normal = edgeNormal
                                 c.Penetration = depth
                                 c.ReferenceParticles = []*Particle{}
                                 contacts = append(contacts, c)
@@ -687,4 +687,36 @@ func pointInPolygon(point Vec2, poly []*Particle) bool {
 		}
 	}
 	return true
+}
+
+// nearestEdgeParticles returns the 2 particles forming the nearest edge
+// of a polygon to the given point.
+func nearestEdgeParticles(point Vec2, poly []*Particle) []*Particle {
+	n := len(poly)
+	if n < 2 {
+		return nil
+	}
+	bestIdx := 0
+	bestDist := float32(MaxWorldSize)
+	for i := 0; i < n; i++ {
+		p1 := poly[i].GlobalPosition()
+		p2 := poly[(i+1)%n].GlobalPosition()
+		edge := p2.Sub(p1)
+		edgeLen := edge.Length()
+		if edgeLen < 1e-6 {
+			continue
+		}
+		edgeDir := edge.Div(edgeLen)
+		bridge := point.Sub(p1)
+		proj := bridge.Dot(edgeDir)
+		if proj < 0 { proj = 0 }
+		if proj > edgeLen { proj = edgeLen }
+		closest := p1.Add(edgeDir.Mul(proj))
+		dist := point.Sub(closest).Length()
+		if dist < bestDist {
+			bestDist = dist
+			bestIdx = i
+		}
+	}
+	return []*Particle{poly[bestIdx], poly[(bestIdx+1)%n]}
 }

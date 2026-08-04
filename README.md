@@ -318,31 +318,49 @@ cd quarkgo/examples
 # Download dependencies
 go mod tidy
 
-# Run Example 01: Mixed Bodies (boxes falling and stacking)
-go run ./01_mixed_bodies/
-
-# Run Example 02: Soft Bodies (deformable blobs)
-go run ./02_soft_bodies/
-
-# Run Example 03: Platformer (character controller)
-go run ./03_platformer/
+# Run any example:
+go run ./01_mixed_bodies/      # Mixed rigid + soft bodies
+go run ./02_soft_bodies/       # Soft body variants
+go run ./03_joints/            # Joint types (pin, distance, groove)
+go run ./04_frictions/         # Friction on angled platforms
+go run ./05_raycasts/          # Raycast fan
+go run ./06_platformer/        # Platformer character controller
+go run ./07_benchmark_boxes/   # 200 boxes stress test
+go run ./08_benchmark_boxes_2/ # 600 boxes heavy stress test
+go run ./09_blobs/             # Spawn soft body blobs
+go run ./99_testing/           # Zero-gravity sandbox
 ```
 
 ### Available Examples
 
-| # | Example | Description |
-|---|---------|-------------|
-| 01 | Mixed Bodies | Rigid boxes spawn and fall onto a floor, stacking and colliding. Demonstrates gravity, collision detection, friction, and restitution. |
-| 02 | Soft Bodies | Deformable polygon blobs fall and squish. Demonstrates mass-spring PBD, area preserving, and shape matching. |
-| 03 | Platformer | A controllable character with walk and jump. Use **Arrow Keys** or **WASD** to move, **Space** to jump. Demonstrates the platformer character controller. |
+| # | Example | Description | Controls |
+|---|---------|-------------|----------|
+| 01 | Mixed Bodies | Random rigid primitives + soft body "QUARK" letters with shape matching and self-collisions | Click to drag |
+| 02 | Soft Bodies | Multiple soft body variants: gridded rect, polygon, polar grid, pressure volume, shape matching | Click to drag |
+| 03 | Joints | Pin joints, distance chains, spring joints, and groove joints (pull-only) | Click to drag |
+| 04 | Frictions | Friction, static friction, and air friction on 6.2° angled platforms + box stack | Click to drag |
+| 05 | Raycasts | 90-ray fan from mouse position, rotating slowly, hitting random bodies | Move mouse |
+| 06 | Platformer | Full character controller: walk, jump, wall-jump, slopes, moving platform, collectible coins | Arrows/WASD + Space |
+| 07 | Benchmark Boxes | 200 dynamic boxes stacked on a floor (stress test) | Click to drag |
+| 08 | Benchmark Boxes 2 | 600 small boxes, low gravity, sleeping disabled (heavy stress test) | Click to drag |
+| 09 | Blobs | Spawn pressure-preserving soft body blobs at the mouse cursor | Hold Space to spawn |
+| 99 | Testing | Zero-gravity sandbox with bouncing circles | Click to drag |
 
-### Controls (Example 03: Platformer)
+### Controls (Example 06: Platformer)
 
 | Key | Action |
 |-----|--------|
 | ← / A | Walk left |
 | → / D | Walk right |
-| Space / ↑ / W | Jump (press for variable height) |
+| Space / ↑ / W | Jump (press for variable height, double-jump supported) |
+| Click + Drag | Grab and drag any body (all examples) |
+
+### Controls (Example 09: Blobs)
+
+| Key | Action |
+|-----|--------|
+| Space | Spawn a soft body blob at mouse position |
+| Click + Drag | Grab and drag existing blobs |
 
 ### Writing Your Own Example
 

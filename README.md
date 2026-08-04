@@ -289,6 +289,106 @@ quarkgo/
 | `json/json.hpp` | `encoding/json` (stdlib) | 3 |
 | `polypartition/*` | `mesh/polypartition/polypartition.go` | 3 |
 
+## Examples (Ebitengine)
+
+The `examples/` directory contains interactive demos built with [Ebitengine](https://github.com/hajimehoshi/ebiten) (a pure-Go game framework). The examples are in a **separate Go module** so the core physics package stays dependency-free.
+
+### Prerequisites
+
+Ebitengine requires CGO on macOS and a C compiler on Linux:
+
+```bash
+# Debian/Ubuntu
+sudo apt install gcc libc6-dev
+
+# Arch Linux
+sudo pacman -S gcc
+
+# macOS (Xcode command line tools)
+xcode-select --install
+```
+
+### Running the Examples
+
+```bash
+# Clone the repo
+git clone https://github.com/Vmarcelo49/quarkgo.git
+cd quarkgo/examples
+
+# Download dependencies
+go mod tidy
+
+# Run Example 01: Mixed Bodies (boxes falling and stacking)
+go run ./01_mixed_bodies/
+
+# Run Example 02: Soft Bodies (deformable blobs)
+go run ./02_soft_bodies/
+
+# Run Example 03: Platformer (character controller)
+go run ./03_platformer/
+```
+
+### Available Examples
+
+| # | Example | Description |
+|---|---------|-------------|
+| 01 | Mixed Bodies | Rigid boxes spawn and fall onto a floor, stacking and colliding. Demonstrates gravity, collision detection, friction, and restitution. |
+| 02 | Soft Bodies | Deformable polygon blobs fall and squish. Demonstrates mass-spring PBD, area preserving, and shape matching. |
+| 03 | Platformer | A controllable character with walk and jump. Use **Arrow Keys** or **WASD** to move, **Space** to jump. Demonstrates the platformer character controller. |
+
+### Controls (Example 03: Platformer)
+
+| Key | Action |
+|-----|--------|
+| ← / A | Walk left |
+| → / D | Walk right |
+| Space / ↑ / W | Jump (press for variable height) |
+
+### Writing Your Own Example
+
+```go
+package main
+
+import (
+	"github.com/hajimehoshi/ebiten/v2"
+
+	"github.com/Vmarcelo49/quarkgo/examples/common"
+	"github.com/Vmarcelo49/quarkgo/physics"
+)
+
+type MyScene struct {
+	*common.Scene
+}
+
+func NewMyScene() *MyScene {
+	scene := common.NewScene(800, 600)
+
+	// Add a floor
+	floor := physics.NewRigidBody()
+	floor.AddMesh(physics.NewRectMesh(physics.Vec2{X: 780, Y: 20}, physics.Vec2Zero(), physics.Vec2Zero()))
+	floor.SetPosition(physics.Vec2{X: 400, Y: 570})
+	floor.SetMode(physics.BodyModeStatic)
+	scene.World.AddRigidBody(floor)
+
+	// Add a falling box
+	box := physics.NewRigidBody()
+	box.AddMesh(physics.NewRectMesh(physics.Vec2{X: 32, Y: 32}, physics.Vec2Zero(), physics.Vec2Zero()))
+	box.SetPosition(physics.Vec2{X: 400, Y: 100})
+	scene.World.AddRigidBody(box)
+
+	return &MyScene{Scene: scene}
+}
+
+func main() {
+	ebiten.SetWindowSize(800, 600)
+	ebiten.SetWindowTitle("My Physics Demo")
+	ebiten.RunGame(NewMyScene())
+}
+```
+
+The `common.Scene` struct handles the Ebitengine `Update`/`Draw`/`Layout` interface — you just set up the physics world and it runs automatically.
+
+
 ## License
 
 MIT, matching the upstream QuarkPhysics license. See [LICENSE](LICENSE).

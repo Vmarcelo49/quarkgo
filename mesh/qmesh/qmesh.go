@@ -14,7 +14,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/example/quarkgo/physics"
+	"github.com/Vmarcelo49/quarkgo/physics"
 )
 
 // qmeshFile is the top-level JSON structure.

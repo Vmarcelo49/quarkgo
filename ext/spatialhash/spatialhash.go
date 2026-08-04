@@ -15,7 +15,7 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/example/quarkgo/physics"
+	"github.com/Vmarcelo49/quarkgo/physics"
 )
 
 // SpatialHashing is a uniform-grid broadphase. Implements physics.BroadPhase.

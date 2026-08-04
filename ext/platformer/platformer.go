@@ -9,7 +9,7 @@
 package platformer
 
 import (
-        "github.com/example/quarkgo/physics"
+        "github.com/Vmarcelo49/quarkgo/physics"
 )
 
 // JumpMode enumerates the jump state machine states.

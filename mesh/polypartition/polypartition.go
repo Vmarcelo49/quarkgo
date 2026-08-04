@@ -13,7 +13,7 @@
 package polypartition
 
 import (
-	"github.com/example/quarkgo/physics"
+	"github.com/Vmarcelo49/quarkgo/physics"
 )
 
 // Point is a 2D point with an ID for back-mapping to source particles.

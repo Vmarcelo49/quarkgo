@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/example/quarkgo/physics"
+	"github.com/Vmarcelo49/quarkgo/physics"
 )
 
 // TestQMeshLoadJSON verifies that .qmesh JSON is parsed correctly.

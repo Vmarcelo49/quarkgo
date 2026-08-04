@@ -3,7 +3,7 @@ package platformer
 import (
 	"testing"
 
-	"github.com/example/quarkgo/physics"
+	"github.com/Vmarcelo49/quarkgo/physics"
 )
 
 // TestPlatformerWalk verifies that Walk sets the walk direction.

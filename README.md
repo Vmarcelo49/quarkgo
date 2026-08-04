@@ -69,7 +69,7 @@ go test -race ./...
 ### Creating a World
 
 ```go
-import "github.com/example/quarkgo/physics"
+import "github.com/Vmarcelo49/quarkgo/physics"
 
 world := physics.NewWorld(
     physics.WithGravity(physics.Vec2{X: 0, Y: 0.2}),
@@ -131,7 +131,7 @@ world.AddJoint(joint)
 ### Platformer Body
 
 ```go
-import "github.com/example/quarkgo/ext/platformer"
+import "github.com/Vmarcelo49/quarkgo/ext/platformer"
 
 player := platformer.New()
 player.AddMesh(physics.NewRectMesh(physics.Vec2{X: 32, Y: 32}, physics.Vec2Zero(), physics.Vec2Zero()))
@@ -160,7 +160,7 @@ world := physics.NewWorld(
 ### Loading .qmesh Files
 
 ```go
-import "github.com/example/quarkgo/mesh/qmesh"
+import "github.com/Vmarcelo49/quarkgo/mesh/qmesh"
 
 meshes, err := qmesh.LoadFile("path/to/mesh.qmesh")
 if err != nil {
@@ -174,7 +174,7 @@ for _, md := range meshes {
 ### Concave Polygon Decomposition
 
 ```go
-import "github.com/example/quarkgo/mesh/polypartition"
+import "github.com/Vmarcelo49/quarkgo/mesh/polypartition"
 
 // Register once at startup
 physics.SetConvexPartitioner(polypartition.ConvexPartitionFromParticles)
@@ -183,7 +183,7 @@ physics.SetConvexPartitioner(polypartition.ConvexPartitionFromParticles)
 ### Spatial Hashing Broadphase
 
 ```go
-import "github.com/example/quarkgo/ext/spatialhash"
+import "github.com/Vmarcelo49/quarkgo/ext/spatialhash"
 
 world := physics.NewWorld(
     physics.WithGravity(physics.Vec2{X: 0, Y: 0.2}),

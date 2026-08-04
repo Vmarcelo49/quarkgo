@@ -3,7 +3,7 @@ package polypartition
 import (
 	"testing"
 
-	"github.com/example/quarkgo/physics"
+	"github.com/Vmarcelo49/quarkgo/physics"
 )
 
 // TestConvexPartitionSquare verifies that a convex polygon (square) is

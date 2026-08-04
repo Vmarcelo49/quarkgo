@@ -3,7 +3,7 @@ package spatialhash
 import (
 	"testing"
 
-	"github.com/example/quarkgo/physics"
+	"github.com/Vmarcelo49/quarkgo/physics"
 )
 
 // TestSpatialHashInsertRemove verifies basic insert and remove operations.

@@ -81,137 +81,174 @@ func (m *Manifold) Contacts() []*Contact { return m.contacts }
 // Solve applies position correction to resolve overlaps.
 // Matches QManifold::Solve in qmanifold.cpp:108-343.
 //
-// For each contact:
-//   - Scale penetration (0.9× rigid-rigid, 0.5× soft-soft)
-//   - Compute response force = normal * penetration
-//   - Dispatch OnCollision events (can cancel solving)
-//   - Apply mass-weighted forces to both bodies
+// C++ convention:
+//   - referenceBody = owner of contact.referenceParticles (the polygon that was hit)
+//   - incidentBody = owner of contact.particle (the penetrating particle)
+//   - normal = points from referenceBody toward incidentBody
+//   - refResponseForce = -responseForce (applied to referenceBody)
+//   - incResponseForce = +responseForce (applied to incidentBody)
 func (m *Manifold) Solve() {
-        // Always dispatch area body events (enter/exit tracking)
-        m.dispatchAreaBodyEvents()
+	// Always dispatch area body events (enter/exit tracking)
+	m.dispatchAreaBodyEvents()
 
-        if m.isCollisionOneSide {
-                return
-        }
+	if m.isCollisionOneSide {
+		return
+	}
 
-        for _, contact := range m.contacts {
-                if contact.Solved {
-                        continue
-                }
+	// Determine body types
+	betweenRigidBodies := m.bodyA.bodyType == BodyTypeRigid && m.bodyB.bodyType == BodyTypeRigid
+	betweenPressuredSoftBodies := false
+	if m.bodyA.bodyType == BodyTypeSoft && m.bodyB.bodyType == BodyTypeSoft {
+		// Check if both have area preserving enabled
+		sbA := asSoftBody(m.bodyA)
+		sbB := asSoftBody(m.bodyB)
+		if sbA != nil && sbB != nil && sbA.enableAreaPreserving && sbB.enableAreaPreserving {
+			betweenPressuredSoftBodies = true
+		}
+	}
 
-                // Scale penetration based on body types
-                penetration := contact.Penetration
-                if m.bodyA.bodyType == BodyTypeRigid && m.bodyB.bodyType == BodyTypeRigid {
-                        penetration *= 0.9
-                } else if m.bodyA.bodyType == BodyTypeSoft || m.bodyB.bodyType == BodyTypeSoft {
-                        penetration *= 0.5
-                }
-                if penetration < 0 {
-                        penetration = 0
-                }
+	for _, contact := range m.contacts {
+		if contact.Solved {
+			continue
+		}
 
-                // Response force
-                responseForce := contact.Normal.Mul(penetration)
-                if m.restitution > 0 {
-                        responseForce = responseForce.Mul(2.0)
-                }
-                // Divide by contact count for rigid-rigid pairs (distributes force)
-                if m.bodyA.bodyType == BodyTypeRigid && m.bodyB.bodyType == BodyTypeRigid && len(m.contacts) > 0 {
-                        responseForce = responseForce.Div(float32(len(m.contacts)))
-                }
+		penetration := contact.Penetration
+		if betweenRigidBodies {
+			penetration *= 0.9
+		} else if betweenPressuredSoftBodies {
+			penetration *= 0.5
+		}
+		if penetration < 0 {
+			penetration = 0
+		}
 
-                // Dispatch OnCollision events
-                info := CollisionInfo{
-                        Position:    contact.Position,
-                        Body:        m.bodyB,
-                        Normal:      contact.Normal,
-                        Penetration: contact.Penetration,
-                }
-                applyResponse := true
-                if m.bodyA.OnCollision != nil {
-                        if !m.bodyA.OnCollision(m.bodyA, info) {
-                                applyResponse = false
-                        }
-                }
-                info.Body = m.bodyA
-                if m.bodyB.OnCollision != nil {
-                        if !m.bodyB.OnCollision(m.bodyB, info) {
-                                applyResponse = false
-                        }
-                }
-                if !applyResponse {
-                        contact.Solved = true
-                        continue
-                }
+		responseForce := contact.Normal.Mul(penetration)
+		if m.restitution > 0 {
+			responseForce = responseForce.Mul(2.0)
+		}
+		if betweenRigidBodies {
+			responseForce = responseForce.Div(float32(len(m.contacts)))
+		}
 
-                // Area body short-circuit: don't apply forces to area bodies
-                if m.bodyA.bodyType == BodyTypeArea || m.bodyB.bodyType == BodyTypeArea {
-                        m.dispatchAreaBodyEvents()
-                        contact.Solved = true
-                        continue
-                }
+		// Identify reference and incident bodies (C++ convention)
+		// referenceBody = owner of contact.referenceParticles
+		// incidentBody = owner of contact.particle
+		var referenceBody, incidentBody *Body
+		if len(contact.ReferenceParticles) > 0 && contact.ReferenceParticles[0] != nil {
+			if contact.ReferenceParticles[0].OwnerMesh() != nil {
+				referenceBody = contact.ReferenceParticles[0].OwnerMesh().OwnerBody()
+			}
+		}
+		if contact.Particle != nil && contact.Particle.OwnerMesh() != nil {
+			incidentBody = contact.Particle.OwnerMesh().OwnerBody()
+		}
 
-                // Mass-weighted response using INVERSE mass.
-                // Normal points from bodyB toward bodyA.
-                // bodyA should be pushed in +normal direction, bodyB in -normal.
-                // Each body's share = its invMass / total invMass.
-                // Static body (invMass=0) doesn't move; dynamic body gets full push.
-                var responseA, responseB Vec2
-                if m.invMass > 0 {
-                        fracA := m.invMassA / m.invMass // A's share
-                        fracB := m.invMassB / m.invMass // B's share
-                        responseA = responseForce.Mul(fracA)
-                        responseB = responseForce.Neg().Mul(fracB)
-                }
+		// Fallback: if we can't determine from particles, use bodyA/bodyB
+		if referenceBody == nil {
+			referenceBody = m.bodyA
+		}
+		if incidentBody == nil {
+			incidentBody = m.bodyB
+		}
 
-                // Apply to bodies
-                m.applyForceToBody(m.bodyA, responseA, contact)
-                m.applyForceToBody(m.bodyB, responseB, contact)
+		// Compute contact position relative to each body
+		rRef := contact.Position.Sub(referenceBody.position)
+		rInc := contact.Position.Sub(incidentBody.position)
 
-                // Debug gizmo
-                if m.world != nil && m.world.debugGizmos {
-                        m.world.AddGizmo(NewGizmoLine(
-                                contact.Position,
-                                contact.Position.Add(contact.Normal.Mul(contact.Penetration)),
-                                true,
-                        ))
-                }
+		// Dispatch collision events
+		info := CollisionInfo{
+			Position:    contact.Position,
+			Body:        incidentBody,
+			Normal:      contact.Normal.Neg(),
+			Penetration: contact.Penetration,
+		}
+		applyResponse := true
+		if referenceBody.OnCollision != nil {
+			if !referenceBody.OnCollision(referenceBody, info) {
+				applyResponse = false
+			}
+		}
+		info.Body = referenceBody
+		info.Normal = contact.Normal
+		if incidentBody.OnCollision != nil {
+			if !incidentBody.OnCollision(incidentBody, info) {
+				applyResponse = false
+			}
+		}
+		if !applyResponse {
+			contact.Solved = true
+			continue
+		}
 
-                contact.Solved = true
-        }
+		// Check if particles are enabled
+		if contact.Particle != nil && !contact.Particle.enabled {
+			continue
+		}
+		refEnabled := true
+		for _, rp := range contact.ReferenceParticles {
+			if rp != nil && !rp.enabled {
+				refEnabled = false
+				break
+			}
+		}
+		if !refEnabled {
+			continue
+		}
 
-        // Return contacts to pool after solving
-        // (The C++ engine does FreeAll at the start of the next iteration;
-        // we rely on sync.Pool's GC-friendly behavior, so we return here.)
-        // NOTE: We don't return here because SolveFrictionAndVelocities still
-        // needs the contacts. The pool is reset implicitly on next iteration.
-}
+		// Compute response forces (C++ convention)
+		refResponseForce := responseForce.Neg()
+		incResponseForce := responseForce
 
-// applyForceToBody applies a response force to a body, handling both rigid
-// bodies (via ApplyForceAt with torque) and soft bodies (via particle forces).
-func (m *Manifold) applyForceToBody(body *Body, force Vec2, contact *Contact) {
-        if body.bodyType == BodyTypeRigid {
-                rb := asRigidBody(body)
-                if rb == nil {
-                        return
-                }
-                // Compute contact point relative to body center
-                r := contact.Position.Sub(body.position)
-                rb.ApplyForceAt(force, r, true)
-        } else if body.bodyType == BodyTypeSoft {
-                // Soft body: apply force to the contact particle directly,
-                // distributed across reference particles if there are 2.
-                if len(contact.ReferenceParticles) == 2 {
-                        ApplyForceToParticleSegment(
-                                contact.ReferenceParticles[0],
-                                contact.ReferenceParticles[1],
-                                force,
-                                contact.Position,
-                        )
-                } else if contact.Particle != nil {
-                        contact.Particle.ApplyForce(force)
-                }
-        }
+		// Mass-weight the forces (C++: refResponseForce *= incidentBody->GetMass() * invMass)
+		refResponseForce = refResponseForce.Mul(incidentBody.Mass() * m.invMass)
+		incResponseForce = incResponseForce.Mul(referenceBody.Mass() * m.invMass)
+
+		// Apply force to reference body (the polygon that was hit)
+		if incidentBody.CanGiveCollisionResponseTo(referenceBody) {
+			contact.Solved = true
+			if referenceBody.bodyType == BodyTypeRigid {
+				if rb := asRigidBody(referenceBody); rb != nil {
+					rb.ApplyForceAt(refResponseForce, rRef, true)
+				}
+			} else if referenceBody.bodyType == BodyTypeSoft {
+				// Apply to reference particles (the polygon edge)
+				if len(contact.ReferenceParticles) == 2 {
+					ApplyForceToParticleSegment(
+						contact.ReferenceParticles[0],
+						contact.ReferenceParticles[1],
+						refResponseForce,
+						contact.Position,
+					)
+				} else if len(contact.ReferenceParticles) == 1 {
+					contact.ReferenceParticles[0].ApplyForce(refResponseForce)
+				}
+			}
+		}
+
+		// Apply force to incident body (the penetrating particle)
+		if referenceBody.CanGiveCollisionResponseTo(incidentBody) {
+			contact.Solved = true
+			if incidentBody.bodyType == BodyTypeRigid {
+				if rb := asRigidBody(incidentBody); rb != nil {
+					rb.ApplyForceAt(incResponseForce, rInc, true)
+				}
+			} else if incidentBody.bodyType == BodyTypeSoft {
+				// Apply to the incident particle directly
+				if contact.Particle != nil {
+					contact.Particle.ApplyForce(incResponseForce)
+				}
+			}
+		}
+
+		// Debug gizmo
+		if m.world != nil && m.world.debugGizmos {
+			m.world.AddGizmo(NewGizmoLine(
+				contact.Position,
+				contact.Position.Add(contact.Normal.Mul(contact.Penetration)),
+				true,
+			))
+		}
+	}
 }
 
 // SolveFrictionAndVelocities applies restitution and friction.
@@ -246,8 +283,8 @@ func (m *Manifold) SolveFrictionAndVelocities() {
                 if tangent.LengthSquared() > 1e-6 {
                         tangent = tangent.Normalized()
                         frictionForce := ComputeFriction(m.bodyA, m.bodyB, contact.Normal, contact.Penetration, relVel)
-                        m.applyForceToBody(m.bodyA, frictionForce.Neg(), contact)
-                        m.applyForceToBody(m.bodyB, frictionForce, contact)
+                        if rb := asRigidBody(m.bodyA); rb != nil { r := contact.Position.Sub(m.bodyA.position); rb.ApplyForceAt(frictionForce.Neg(), r, true) } else if m.bodyA.bodyType == BodyTypeSoft && contact.Particle != nil { contact.Particle.ApplyForce(frictionForce.Neg()) }
+                        if rb := asRigidBody(m.bodyB); rb != nil { r := contact.Position.Sub(m.bodyB.position); rb.ApplyForceAt(frictionForce, r, true) } else if m.bodyB.bodyType == BodyTypeSoft && contact.Particle != nil { contact.Particle.ApplyForce(frictionForce) }
                 }
         }
 }

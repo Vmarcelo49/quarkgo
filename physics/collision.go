@@ -26,7 +26,12 @@ func GetCollisions(bodyA, bodyB *Body, pool *ContactPool, applyHotSolvers bool) 
                         case cbA == CollisionCircles && cbB == CollisionPolygons:
                                 contacts = append(contacts, circleVsPolygon(meshA, meshB, pool)...)
                         case cbA == CollisionPolygons && cbB == CollisionCircles:
-                                contacts = append(contacts, circleVsPolygon(meshB, meshA, pool)...)
+                                // Polygon is bodyA, circle is bodyB. Normal needs negation (A→B → B→A)
+                                circleContacts := circleVsPolygon(meshB, meshA, pool)
+                                for _, c := range circleContacts {
+                                	c.Normal = c.Normal.Neg()
+                                }
+                                contacts = append(contacts, circleContacts...)
                         case cbA == CollisionCircles && cbB == CollisionCircles:
                                 contacts = append(contacts, circleVsCircle(meshA, meshB, pool, bodyA, bodyB)...)
                         case cbA == CollisionPolyline && cbB == CollisionPolygons:
@@ -487,143 +492,160 @@ func circleVsCircle(meshA, meshB *Mesh, pool *ContactPool, bodyA, bodyB *Body) [
 // circleVsPolygon runs circle-polygon collision detection.
 // Matches QCollision::CircleAndPolygon in qcollision.cpp:902-1074.
 //
-// Uses Voronoi region classification: for each circle particle, finds the
-// nearest polygon vertex and edge, then classifies as vertex/edge/inside.
+// The C++ convention:
+//   - contact->particle = the INCIDENT particle (circle particle that penetrated)
+//   - contact->referenceParticles = the REFERENCE particles (polygon edge/vertex)
+//   - contact->normal = points from polygon (reference) toward circle (incident)
+//   - contact->position = the circle particle's position (adjusted by radius)
+//
+// In the Manifold solver:
+//   - referenceBody = owner of referenceParticles (the polygon)
+//   - incidentBody = owner of particle (the circle)
+//   - refResponseForce = -responseForce (applied to polygon)
+//   - incResponseForce = +responseForce (applied to circle particle)
+// So the normal must point from polygon toward circle = OUTWARD from polygon.
 func circleVsPolygon(circleMesh, polygonMesh *Mesh, pool *ContactPool) []*Contact {
-        var contacts []*Contact
-        poly := polygonMesh.polygon
-        if len(poly) < 3 {
-                return nil
-        }
-        n := len(poly)
+	var contacts []*Contact
+	poly := polygonMesh.polygon
+	if len(poly) < 3 {
+		return nil
+	}
+	n := len(poly)
 
-        for _, circle := range circleMesh.particles {
-                cPos := circle.GlobalPosition()
-                cRadius := circle.Radius()
+	// Build polygon positions, shrinking by particle radius (C++ ParticlePolygonToPolygon)
+	polyPositions := make([]Vec2, n)
+	for i := 0; i < n; i++ {
+		p := poly[i]
+		if p.Radius() > 0.5 {
+			pp := poly[(i-1+n)%n]
+			np := poly[(i+1)%n]
+			bisectorUnit := GetBisectorUnitVector(pp.GlobalPosition(), p.GlobalPosition(), np.GlobalPosition(), false)
+			polyPositions[i] = p.GlobalPosition().Sub(bisectorUnit.Mul(p.Radius()))
+		} else {
+			polyPositions[i] = p.GlobalPosition()
+		}
+	}
 
-                // Find nearest polygon edge (perpendicular distance)
-                bestEdgeIdx := 0
-                bestEdgeDist := float32(MaxWorldSize)
-                for i := 0; i < n; i++ {
-                        p1 := poly[i].GlobalPosition()
-                        p2 := poly[(i+1)%n].GlobalPosition()
-                        edge := p2.Sub(p1)
-                        edgeLen := edge.Length()
-                        if edgeLen < 1e-6 {
-                                continue
-                        }
-                        edgeDir := edge.Div(edgeLen)
-                        bridge := cPos.Sub(p1)
-                        proj := bridge.Dot(edgeDir)
-                        // Clamp projection to edge segment
-                        if proj < 0 {
-                                proj = 0
-                        } else if proj > edgeLen {
-                                proj = edgeLen
-                        }
-                        closest := p1.Add(edgeDir.Mul(proj))
-                        dist := (cPos.Sub(closest)).Length()
-                        if dist < bestEdgeDist {
-                                bestEdgeDist = dist
-                                bestEdgeIdx = i
-                        }
-                }
+	for _, circle := range circleMesh.particles {
+		cPos := circle.GlobalPosition()
+		cRadius := circle.Radius()
 
-                // Determine if the circle is inside the polygon
-                inside := pointInPolygon(cPos, poly)
+		// Find nearest vertex and nearest edge
+		var nearestPolygonParticle *Particle
+		nearestParticlePenSq := float32(MaxWorldSize)
+		var nearestParticleNormal Vec2
 
-                var normal Vec2
-                var penetration float32
-                var contactPos Vec2
+		var nearestEdgeParticles [2]*Particle
+		nearestEdgePenetration := float32(MaxWorldSize)
+		nearestEdgeMinDist := float32(MaxWorldSize)
+		var nearestEdgeNormal Vec2
 
-                p1 := poly[bestEdgeIdx].GlobalPosition()
-                p2 := poly[(bestEdgeIdx+1)%n].GlobalPosition()
-                edge := p2.Sub(p1)
-                edgeLen := edge.Length()
-                if edgeLen < 1e-6 {
-                        continue
-                }
-                edgeDir := edge.Div(edgeLen)
-                // Outward normal (assuming CW winding)
-                edgeNormal := Vec2{X: edgeDir.Y, Y: -edgeDir.X}
+		for pi := 0; pi < n; pi++ {
+			npi := (pi + 1) % n
+			p := poly[pi]
+			np := poly[npi]
+			pPos := polyPositions[pi]
+			npPos := polyPositions[npi]
 
-                bridge := cPos.Sub(p1)
-                proj := bridge.Dot(edgeDir)
+			// Nearest vertex
+			circleToParticleVec := cPos.Sub(pPos)
+			distSq := circleToParticleVec.LengthSquared()
+			if distSq < nearestParticlePenSq {
+				nearestPolygonParticle = p
+				nearestParticlePenSq = distSq
+				nearestParticleNormal = circleToParticleVec.Normalized()
+			}
 
-                if inside {
-                        // Deep penetration: push out along edge normal
-                        normal = edgeNormal.Neg()
-                        penetration = cRadius + bestEdgeDist
-                        contactPos = cPos
-                } else if bestEdgeDist < cRadius {
-                        // Circle overlaps edge
-                        if proj < 0 {
-                                // Closest to p1 (vertex region)
-                                v := cPos.Sub(p1)
-                                vLen := v.Length()
-                                if vLen < 1e-6 {
-                                        continue
-                                }
-                                normal = v.Div(vLen)
-                                penetration = cRadius - vLen
-                                contactPos = p1
-                        } else if proj > edgeLen {
-                                // Closest to p2 (vertex region)
-                                v := cPos.Sub(p2)
-                                vLen := v.Length()
-                                if vLen < 1e-6 {
-                                        continue
-                                }
-                                normal = v.Div(vLen)
-                                penetration = cRadius - vLen
-                                contactPos = p2
-                        } else {
-                                // Edge region
-                                normal = edgeNormal.Neg()
-                                penetration = cRadius - bestEdgeDist
-                                closest := p1.Add(edgeDir.Mul(proj))
-                                contactPos = closest
-                        }
-                } else {
-                        continue
-                }
+			// Nearest edge
+			edgeVec := npPos.Sub(pPos)
+			edgeVecUnit := edgeVec.Normalized()
+			edgeVecNormal := edgeVecUnit.Perpendicular()
 
-                c := pool.Get()
-                c.Particle = circle
-                c.Position = contactPos
-                c.Normal = normal
-                c.Penetration = penetration
-                c.ReferenceParticles = []*Particle{poly[bestEdgeIdx], poly[(bestEdgeIdx+1)%n]}
-                contacts = append(contacts, c)
-        }
+			circleToEdgeBegin := cPos.Sub(pPos)
+			pen := circleToEdgeBegin.Dot(edgeVecNormal)
 
-        return contacts
+			if Abs(pen) < nearestEdgeMinDist {
+				proj := circleToEdgeBegin.Dot(edgeVecUnit)
+				if proj >= 0.0 && proj <= edgeVec.Length() {
+					nearestEdgeMinDist = Abs(pen)
+					nearestEdgePenetration = pen
+					nearestEdgeParticles[0] = p
+					nearestEdgeParticles[1] = np
+					nearestEdgeNormal = edgeVecNormal
+				}
+			}
+		}
+
+		nearestParticlePen := Sqrt(nearestParticlePenSq)
+
+		// Determine Voronoi region: 0=vertex, 1=edge, 2=inside
+		voronoiRegion := 0
+		if nearestEdgeParticles[0] != nil {
+			if nearestParticlePen > nearestEdgeMinDist {
+				if nearestEdgePenetration < 0 && pointInPolygon(cPos, poly) {
+					voronoiRegion = 2
+				} else {
+					voronoiRegion = 1
+				}
+			} else {
+				voronoiRegion = 0
+			}
+		}
+
+		// Test collisions based on Voronoi region
+		if voronoiRegion == 0 {
+			// Vertex region
+			if nearestPolygonParticle != nil {
+				if pointInPolygon(cPos, poly) {
+					// Inside, nearest to vertex
+					penetration := cRadius + nearestParticlePen
+					contactPos := cPos
+					c := pool.Get()
+					c.Configure(circle, contactPos, nearestParticleNormal.Neg(), penetration, []*Particle{nearestPolygonParticle})
+					contacts = append(contacts, c)
+				} else {
+					// Outside, near vertex
+					if nearestParticlePen < cRadius {
+						penetration := cRadius - nearestParticlePen
+						contactPos := cPos
+						if cRadius > 0.5 {
+							contactPos = contactPos.Sub(nearestParticleNormal.Mul(cRadius))
+						}
+						c := pool.Get()
+						c.Configure(circle, contactPos, nearestParticleNormal, penetration, []*Particle{nearestPolygonParticle})
+						contacts = append(contacts, c)
+					}
+				}
+			}
+		} else if voronoiRegion == 1 {
+			// Edge region
+			if nearestEdgePenetration < cRadius {
+				penetration := cRadius - nearestEdgePenetration
+				contactPos := cPos
+				if cRadius > 0.5 {
+					contactPos = contactPos.Sub(nearestEdgeNormal.Mul(cRadius))
+				}
+				c := pool.Get()
+				c.Configure(circle, contactPos, nearestEdgeNormal, penetration, []*Particle{nearestEdgeParticles[0], nearestEdgeParticles[1]})
+				contacts = append(contacts, c)
+			}
+		} else if voronoiRegion == 2 {
+			// Inside region
+			penetration := cRadius - nearestEdgePenetration
+			contactPos := cPos
+			if cRadius > 0.5 {
+				contactPos = contactPos.Sub(nearestEdgeNormal.Mul(cRadius))
+			}
+			c := pool.Get()
+			c.Configure(circle, contactPos, nearestEdgeNormal, penetration, []*Particle{nearestEdgeParticles[0], nearestEdgeParticles[1]})
+			contacts = append(contacts, c)
+		}
+	}
+
+	return contacts
 }
 
-// pointInPolygon reports whether a point is inside a convex polygon.
-// Assumes clockwise winding in screen coordinates (Y down).
-// For CW polygons, the interior is on the LEFT side of each edge,
-// meaning the cross product (edge × toPoint) should be >= 0 for all edges.
-func pointInPolygon(point Vec2, poly []*Particle) bool {
-        n := len(poly)
-        if n < 3 {
-                return false
-        }
-        for i := 0; i < n; i++ {
-                p1 := poly[i].GlobalPosition()
-                p2 := poly[(i+1)%n].GlobalPosition()
-                edge := p2.Sub(p1)
-                toPoint := point.Sub(p1)
-                cross := edge.X*toPoint.Y - edge.Y*toPoint.X
-                // For CW in screen coords: inside = left side = cross >= 0
-                // If cross < 0, point is on the right (outside)
-                if cross < 0 {
-                        return false
-                }
-        }
-        return true
-}
-
+// ---
 // --- Geometry helpers ---
 
 // LineIntersectionLine computes the intersection of two line segments.
@@ -642,4 +664,27 @@ func LineIntersectionLine(d1A, d1B, d2A, d2B Vec2) Vec2 {
                 return Vec2NaN()
         }
         return d1A.Add(r.Mul(t))
+}
+
+// pointInPolygon reports whether a point is inside a convex polygon.
+// Uses the winding number algorithm (PointInPolygonWN in C++).
+func pointInPolygon(point Vec2, poly []*Particle) bool {
+	n := len(poly)
+	if n < 3 {
+		return false
+	}
+	// Cross-product test for convex polygons: point must be on the
+	// same side of all edges. For CW winding in screen coords (Y down),
+	// inside = left side = cross >= 0 for all edges.
+	for i := 0; i < n; i++ {
+		p1 := poly[i].GlobalPosition()
+		p2 := poly[(i+1)%n].GlobalPosition()
+		edge := p2.Sub(p1)
+		toPoint := point.Sub(p1)
+		cross := edge.X*toPoint.Y - edge.Y*toPoint.X
+		if cross < 0 {
+			return false
+		}
+	}
+	return true
 }

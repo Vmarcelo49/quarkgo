@@ -1,0 +1,128 @@
+package physics
+
+// AABB is an axis-aligned bounding box, the cheap pre-collision filter.
+// Matches QAABB in qaabb.h.
+//
+// Convention: Min is the top-left corner, Max is the bottom-right corner
+// (Y axis points down, matching the rest of the engine).
+type AABB struct {
+	Min, Max Vec2
+}
+
+// NewAABB constructs an AABB from min and max corners.
+func NewAABB(min, max Vec2) AABB {
+	return AABB{Min: min, Max: max}
+}
+
+// Size returns (Max - Min).
+func (a AABB) Size() Vec2 { return a.Max.Sub(a.Min) }
+
+// Perimeter returns the perimeter of the AABB (2 * (w + h)).
+// Matches QAABB::GetPerimeter in qaabb.h:83-85.
+func (a AABB) Perimeter() float32 {
+	s := a.Size()
+	return 2.0 * (s.X + s.Y)
+}
+
+// Area returns the area (width × height).
+// Matches QAABB::GetArea in qaabb.h:87-89.
+func (a AABB) Area() float32 {
+	s := a.Size()
+	return s.X * s.Y
+}
+
+// CenterPosition returns the midpoint of the AABB.
+// Matches QAABB::GetCenterPosition in qaabb.h:91-93.
+func (a AABB) CenterPosition() Vec2 {
+	return a.Min.Add(a.Max).Mul(0.5)
+}
+
+// IsContain reports whether otherAABB is entirely contained within a.
+// Matches QAABB::isContain in qaabb.h:99-104.
+func (a AABB) IsContain(other AABB) bool {
+	return a.Min.X <= other.Min.X &&
+		a.Min.Y <= other.Min.Y &&
+		a.Max.X >= other.Max.X &&
+		a.Max.Y >= other.Max.Y
+}
+
+// IsCollidingWith reports whether a and other overlap.
+// Matches QAABB::isCollidingWith in qaabb.h:132-135.
+func (a AABB) IsCollidingWith(other AABB) bool {
+	return a.Max.X >= other.Min.X && a.Min.X <= other.Max.X &&
+		a.Max.Y >= other.Min.Y && a.Min.Y <= other.Max.Y
+}
+
+// Combine returns the smallest AABB containing both b1 and b2.
+// Matches QAABB::Combine in qaabb.h:105-114.
+func Combine(b1, b2 AABB) AABB {
+	return AABB{
+		Min: Vec2{
+			X: Min(b1.Min.X, b2.Min.X),
+			Y: Min(b1.Min.Y, b2.Min.Y),
+		},
+		Max: Vec2{
+			X: Max(b1.Max.X, b2.Max.X),
+			Y: Max(b1.Max.Y, b2.Max.Y),
+		},
+	}
+}
+
+// Fatten returns a new AABB expanded by amount on all sides.
+// Matches QAABB::Fattened in qaabb.h:121-125.
+func (a AABB) Fatten(amount float32) AABB {
+	v := Vec2{X: amount, Y: amount}
+	return AABB{Min: a.Min.Sub(v), Max: a.Max.Add(v)}
+}
+
+// FattenedWithRate returns a new AABB expanded proportionally to its size.
+// rate=0.1 expands by 5% on each side (10% total).
+// Matches QAABB::FattenedWithRate in qaabb.h:127-130.
+func (a AABB) FattenedWithRate(rate float32) AABB {
+	rated := a.Size().Mul(rate * 0.5)
+	return AABB{Min: a.Min.Sub(rated), Max: a.Max.Add(rated)}
+}
+
+// SetMinMax returns a new AABB with min and max replaced. Kept for API
+// parity with QAABB::SetMinMax, though in Go the idiomatic approach is
+// to construct a new AABB directly.
+func (a AABB) SetMinMax(min, max Vec2) AABB {
+	return AABB{Min: min, Max: max}
+}
+
+// GetAABBFromParticles returns the bounding box of a set of particles,
+// expanded by each particle's radius. Matches QAABB::GetAABBFromParticles.
+//
+// The particle slice is required because AABB is a value type and cannot
+// reference particles directly. This is the main place where the Go port
+// differs structurally from C++ (which used a vector<QParticle*>&).
+func GetAABBFromParticles(particles []*Particle) AABB {
+	if len(particles) == 0 {
+		return AABB{}
+	}
+	first := particles[0]
+	minX := first.GlobalPosition().X - first.Radius()
+	minY := first.GlobalPosition().Y - first.Radius()
+	maxX := first.GlobalPosition().X + first.Radius()
+	maxY := first.GlobalPosition().Y + first.Radius()
+	for _, p := range particles[1:] {
+		gp := p.GlobalPosition()
+		r := p.Radius()
+		if gp.X-r < minX {
+			minX = gp.X - r
+		}
+		if gp.Y-r < minY {
+			minY = gp.Y - r
+		}
+		if gp.X+r > maxX {
+			maxX = gp.X + r
+		}
+		if gp.Y+r > maxY {
+			maxY = gp.Y + r
+		}
+	}
+	return AABB{
+		Min: Vec2{X: minX, Y: minY},
+		Max: Vec2{X: maxX, Y: maxY},
+	}
+}

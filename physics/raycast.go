@@ -1,0 +1,244 @@
+package physics
+
+// Raycast casts a ray into the world and reports collision contacts.
+// Matches QRaycast in qraycast.h, qraycast.cpp.
+//
+// Two modes:
+//   - Instance-based: register a Raycast with World.AddRaycast; contacts
+//     are auto-updated each step via UpdateContacts().
+//   - Static one-shot: call RaycastTo() for a fire-and-forget query.
+type Raycast struct {
+	position               Vec2
+	rotation               float32
+	ray                    Vec2
+	rayOriginal            Vec2
+	enabledContainingBodies bool
+	collidableLayersBit    int
+	contacts               []RaycastContact
+	world                  *World
+}
+
+// RaycastContact is a single ray hit. Matches QRaycast::Contact.
+type RaycastContact struct {
+	Body     *Body
+	Position Vec2
+	Normal   Vec2
+	Distance float32
+}
+
+// NewRaycast creates a raycast.
+func NewRaycast(position, rayVector Vec2, enableContainingBodies bool) *Raycast {
+	return &Raycast{
+		position:               position,
+		ray:                    rayVector,
+		rayOriginal:            rayVector,
+		enabledContainingBodies: enableContainingBodies,
+		collidableLayersBit:    1,
+	}
+}
+
+// --- Getters ---
+
+func (r *Raycast) Position() Vec2             { return r.position }
+func (r *Raycast) Rotation() float32           { return r.rotation }
+func (r *Raycast) RayVector() Vec2             { return r.ray }
+func (r *Raycast) EnabledContainingBodies() bool { return r.enabledContainingBodies }
+func (r *Raycast) CollidableLayersBit() int    { return r.collidableLayersBit }
+func (r *Raycast) Contacts() []RaycastContact { return r.contacts }
+
+// --- Setters ---
+
+func (r *Raycast) SetPosition(v Vec2) *Raycast { r.position = v; return r }
+func (r *Raycast) SetRotation(rad float32) *Raycast {
+	r.rotation = rad
+	r.ray = r.rayOriginal.Rotated(rad)
+	return r
+}
+func (r *Raycast) SetRayVector(v Vec2) *Raycast {
+	r.ray = v
+	r.rayOriginal = v
+	return r
+}
+func (r *Raycast) SetEnabledContainingBodies(b bool) *Raycast {
+	r.enabledContainingBodies = b
+	return r
+}
+func (r *Raycast) SetCollidableLayersBit(b int) *Raycast { r.collidableLayersBit = b; return r }
+
+// --- World registration ---
+
+// World returns the world this raycast belongs to.
+func (r *Raycast) World() *World { return r.world }
+
+// SetWorld sets the world (called by World.AddRaycast).
+func (r *Raycast) setWorld(w *World) { r.world = w }
+
+// --- Raycast logic ---
+
+// UpdateContacts re-computes the raycast contacts. Called automatically
+// by World.Update for registered raycasts.
+// Matches QRaycast::UpdateContacts in qraycast.cpp:86-90.
+func (r *Raycast) UpdateContacts() {
+	if r.world == nil {
+		return
+	}
+	r.contacts = RaycastTo(r.world, r.position, r.ray, r.collidableLayersBit, r.enabledContainingBodies)
+}
+
+// RaycastTo performs a one-shot raycast against the world.
+// Matches QRaycast::RaycastTo in qraycast.cpp:94-116.
+//
+// Filters bodies by AABB and layer bits, then tests each body's meshes
+// for ray-polygon or ray-circle intersection.
+func RaycastTo(world *World, rayPosition, rayVector Vec2, collidableLayers int, enableContainingBodies bool) []RaycastContact {
+	var contacts []RaycastContact
+
+	rayEnd := rayPosition.Add(rayVector)
+	rayAABB := AABB{
+		Min: Vec2{
+			X: Min(rayPosition.X, rayEnd.X),
+			Y: Min(rayPosition.Y, rayEnd.Y),
+		},
+		Max: Vec2{
+			X: Max(rayPosition.X, rayEnd.X),
+			Y: Max(rayPosition.Y, rayEnd.Y),
+		},
+	}
+
+	rayNormal := rayVector.Perpendicular().Normalized()
+
+	for _, body := range world.bodies {
+		if !body.enabled {
+			continue
+		}
+		// Layer filter
+		if (body.layersBit & collidableLayers) == 0 {
+			continue
+		}
+		// AABB filter
+		if !body.aabb.IsCollidingWith(rayAABB) {
+			continue
+		}
+
+		for _, mesh := range body.meshes {
+			cb := mesh.CollisionBehavior()
+			switch cb {
+			case CollisionCircles:
+				raycastToParticles(body, mesh, rayPosition, rayVector, rayNormal, enableContainingBodies, &contacts)
+			case CollisionPolygons, CollisionPolyline:
+				raycastToPolygon(body, mesh, rayPosition, rayVector, rayNormal, enableContainingBodies, &contacts)
+			}
+		}
+	}
+
+	// Sort contacts by distance from ray origin
+	sortRaycastContacts(contacts)
+
+	return contacts
+}
+
+// raycastToParticles tests a ray against circle particles.
+// Matches QRaycast::RaycastToParticles in qraycast.cpp:181-222.
+func raycastToParticles(body *Body, mesh *Mesh, rayPos, rayVec, rayNormal Vec2, enableContaining bool, contacts *[]RaycastContact) {
+	rayLen := rayVec.Length()
+	if rayLen < 1e-6 {
+		return
+	}
+	rayUnit := rayVec.Div(rayLen)
+
+	for _, p := range mesh.particles {
+		if !p.enabled {
+			continue
+		}
+		cp := p.GlobalPosition()
+		r := p.Radius()
+
+		// Project particle position onto ray
+		toParticle := cp.Sub(rayPos)
+		proj := toParticle.Dot(rayUnit)
+
+		if proj < 0 || proj > rayLen {
+			continue
+		}
+
+		// Perpendicular distance from ray to particle center
+		perpDist := toParticle.Dot(rayNormal)
+		if Abs(perpDist) < 0 {
+			perpDist = -perpDist
+		}
+
+		if perpDist < r {
+			// Ray hits the circle — compute contact position
+			offset := Sqrt(r*r - perpDist*perpDist)
+			contactPos := rayPos.Add(rayUnit.Mul(proj - offset))
+			distance := (contactPos.Sub(rayPos)).Length()
+
+			// If the ray starts inside the circle and containing is disabled, skip
+			if !enableContaining && toParticle.Length() < r {
+				continue
+			}
+
+			normal := contactPos.Sub(cp).Normalized()
+			*contacts = append(*contacts, RaycastContact{
+				Body:     body,
+				Position: contactPos,
+				Normal:   normal,
+				Distance: distance,
+			})
+		}
+	}
+}
+
+// raycastToPolygon tests a ray against polygon edges.
+// Matches QRaycast::RaycastToPolygon in qraycast.cpp:224-270.
+func raycastToPolygon(body *Body, mesh *Mesh, rayPos, rayVec, rayNormal Vec2, enableContaining bool, contacts *[]RaycastContact) {
+	rayEnd := rayPos.Add(rayVec)
+	poly := mesh.polygon
+	n := len(poly)
+	if n < 2 {
+		return
+	}
+
+	for i := 0; i < n; i++ {
+		p1 := poly[i].GlobalPosition()
+		p2 := poly[(i+1)%n].GlobalPosition()
+
+		intersection := LineIntersectionLine(rayPos, rayEnd, p1, p2)
+		if intersection.IsNaN() {
+			continue
+		}
+
+		distance := (intersection.Sub(rayPos)).Length()
+
+		// Compute edge normal
+		edge := p2.Sub(p1)
+		normal := edge.Perpendicular().Normalized()
+		// Ensure normal points toward the ray origin (away from polygon)
+		toRay := rayPos.Sub(intersection)
+		if normal.Dot(toRay) < 0 {
+			normal = normal.Neg()
+		}
+
+		*contacts = append(*contacts, RaycastContact{
+			Body:     body,
+			Position: intersection,
+			Normal:   normal,
+			Distance: distance,
+		})
+	}
+}
+
+// sortRaycastContacts sorts contacts by distance (ascending).
+// Matches QRaycast::SortContacts in qraycast.cpp:272-275.
+func sortRaycastContacts(contacts []RaycastContact) {
+	// Simple insertion sort (small N, avoids sort import)
+	for i := 1; i < len(contacts); i++ {
+		key := contacts[i]
+		j := i - 1
+		for j >= 0 && contacts[j].Distance > key.Distance {
+			contacts[j+1] = contacts[j]
+			j--
+		}
+		contacts[j+1] = key
+	}
+}

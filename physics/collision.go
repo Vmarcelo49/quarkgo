@@ -26,12 +26,8 @@ func GetCollisions(bodyA, bodyB *Body, pool *ContactPool, applyHotSolvers bool) 
                         case cbA == CollisionCircles && cbB == CollisionPolygons:
                                 contacts = append(contacts, circleVsPolygon(meshA, meshB, pool)...)
                         case cbA == CollisionPolygons && cbB == CollisionCircles:
-                                // Polygon is bodyA, circle is bodyB. Normal needs negation (A→B → B→A)
-                                circleContacts := circleVsPolygon(meshB, meshA, pool)
-                                for _, c := range circleContacts {
-                                	c.Normal = c.Normal.Neg()
-                                }
-                                contacts = append(contacts, circleContacts...)
+				// Polygon is bodyA, circle is bodyB. Normal is correct (from polygon toward circle).
+				contacts = append(contacts, circleVsPolygon(meshB, meshA, pool)...)
                         case cbA == CollisionCircles && cbB == CollisionCircles:
                                 contacts = append(contacts, circleVsCircle(meshA, meshB, pool, bodyA, bodyB)...)
                         case cbA == CollisionPolyline && cbB == CollisionPolygons:

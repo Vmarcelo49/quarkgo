@@ -61,16 +61,68 @@ func polylineAndPolygon(polylineParticles, polygonParticles []*Particle, pool *C
 
 		inside := pointInPolygon(pos, polygonParticles)
 
-		if inside && bestEdgePen < 0 {
-			// Inside, nearest edge is the entry edge. Push out along its normal.
-			depth := -bestEdgePen
-			c := pool.Get()
-			c.Particle = p
-			c.Position = pos
-			c.Normal = bestEdgeNormal
-			c.Penetration = depth
-			c.ReferenceParticles = []*Particle{polygonParticles[bestEdgeIdx], polygonParticles[(bestEdgeIdx+1)%n]}
-			contacts = append(contacts, c)
+		if inside {
+			// Point is inside the polygon. Find the edge to push out through.
+			// Prefer edges with bestEdgePen < 0 (point is on the interior side).
+			// If no such edge exists (deep penetration, all edges have pen > 0),
+			// use the edge with the smallest pen (closest to interior = nearest exit).
+			if bestEdgePen < 0 {
+				// Nearest edge is on the interior side — push out through it.
+				depth := -bestEdgePen
+				c := pool.Get()
+				c.Particle = p
+				c.Position = pos
+				c.Normal = bestEdgeNormal
+				c.Penetration = depth
+				c.ReferenceParticles = []*Particle{polygonParticles[bestEdgeIdx], polygonParticles[(bestEdgeIdx+1)%n]}
+				contacts = append(contacts, c)
+			} else {
+				// Deep penetration — all edges have pen > 0.
+				// Use velocity direction to determine the entry edge.
+				vel := pos.Sub(p.PreviousGlobalPosition())
+				velLen := vel.Length()
+				if velLen > 1e-4 {
+					velUnit := vel.Div(velLen)
+					// Find edge whose outward normal is most anti-parallel to velocity
+					bestVelDot := float32(MaxWorldSize)
+					entryIdx := bestEdgeIdx
+					entryNormal := bestEdgeNormal
+					for i := 0; i < n; i++ {
+						p1 := polygonParticles[i].GlobalPosition()
+						p2 := polygonParticles[(i+1)%n].GlobalPosition()
+						eedge := p2.Sub(p1)
+						enormal := Vec2{X: eedge.Y, Y: -eedge.X}.Normalized()
+						dot := enormal.Dot(velUnit)
+						if dot < bestVelDot {
+							bestVelDot = dot
+							entryIdx = i
+							entryNormal = enormal
+						}
+					}
+					// Depth = distance to that edge
+					ep1 := polygonParticles[entryIdx].GlobalPosition()
+					ebridge := pos.Sub(ep1)
+					edepth := ebridge.Dot(entryNormal)
+					if edepth < 0 { edepth = -edepth }
+					c := pool.Get()
+					c.Particle = p
+					c.Position = pos
+					c.Normal = entryNormal
+					c.Penetration = edepth
+					c.ReferenceParticles = []*Particle{polygonParticles[entryIdx], polygonParticles[(entryIdx+1)%n]}
+					contacts = append(contacts, c)
+				} else {
+					// No velocity — use nearest edge by abs distance
+					depth := bestEdgeDist
+					c := pool.Get()
+					c.Particle = p
+					c.Position = pos
+					c.Normal = bestEdgeNormal
+					c.Penetration = depth
+					c.ReferenceParticles = []*Particle{polygonParticles[bestEdgeIdx], polygonParticles[(bestEdgeIdx+1)%n]}
+					contacts = append(contacts, c)
+				}
+			}
 		} else if !inside && bestEdgeDist < p.Radius() {
 			r := p.Radius()
 			if r > 0.5 {

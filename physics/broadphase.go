@@ -1,5 +1,7 @@
 package physics
 
+import "slices"
+
 // BroadPhase is the interface for broadphase collision pair generation.
 // Implementations reduce O(n²) body pair checks to near-linear by
 // partitioning bodies spatially.
@@ -40,10 +42,8 @@ func NewSAPBroadPhase() *SAPBroadPhase {
 
 // Insert adds a body (if not already present).
 func (s *SAPBroadPhase) Insert(b *Body) {
-	for _, bb := range s.bodies {
-		if bb == b {
-			return
-		}
+	if slices.Contains(s.bodies, b) {
+		return
 	}
 	s.bodies = append(s.bodies, b)
 }

@@ -23,7 +23,7 @@ func BenchmarkRigidBodies(b *testing.B) {
 			world.AddRigidBody(floor)
 
 			// Falling boxes
-			for i := 0; i < n; i++ {
+			for i := range n {
 				box := NewRigidBody()
 				box.AddMesh(NewRectMesh(Vec2{X: 16, Y: 16}, Vec2Zero(), Vec2Zero()))
 				box.SetPosition(Vec2{X: float32(i*20 + 10), Y: 0})
@@ -54,7 +54,7 @@ func BenchmarkRigidBodiesParallel(b *testing.B) {
 			floor.SetMode(BodyModeStatic)
 			world.AddRigidBody(floor)
 
-			for i := 0; i < n; i++ {
+			for i := range n {
 				box := NewRigidBody()
 				box.AddMesh(NewRectMesh(Vec2{X: 16, Y: 16}, Vec2Zero(), Vec2Zero()))
 				box.SetPosition(Vec2{X: float32(i*20 + 10), Y: 0})
@@ -84,7 +84,7 @@ func BenchmarkSoftBodies(b *testing.B) {
 			floor.SetMode(BodyModeStatic)
 			world.AddRigidBody(floor)
 
-			for i := 0; i < n; i++ {
+			for i := range n {
 				sb := NewSoftBody()
 				sb.AddMesh(NewPolygonMesh(16, 6, Vec2Zero(), -1))
 				sb.SetPosition(Vec2{X: float32(i*30 + 30), Y: 0})
@@ -103,7 +103,7 @@ func BenchmarkSoftBodies(b *testing.B) {
 func BenchmarkWorldCreation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		world := NewWorld(WithGravity(Vec2{X: 0, Y: 0.2}), WithIterations(4))
-		for j := 0; j < 100; j++ {
+		for j := range 100 {
 			box := NewRigidBody()
 			box.AddMesh(NewRectMesh(Vec2{X: 16, Y: 16}, Vec2Zero(), Vec2Zero()))
 			box.SetPosition(Vec2{X: float32(j), Y: 0})

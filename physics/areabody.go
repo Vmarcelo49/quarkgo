@@ -1,5 +1,7 @@
 package physics
 
+import "slices"
+
 // AreaBody is a sensor/trigger body. Matches QAreaBody in qareabody.h, qareabody.cpp.
 //
 // Area bodies do NOT respond to collisions or receive forces — they only
@@ -181,11 +183,8 @@ func (ab *AreaBody) CheckBodies() {
 									particleIsColliding = true
 									break
 								}
-								for _, rp := range contact.ReferenceParticles {
-									if rp == particle {
-										particleIsColliding = true
-										break
-									}
+								if slices.Contains(contact.ReferenceParticles, particle) {
+									particleIsColliding = true
 								}
 								if particleIsColliding {
 									break

@@ -68,7 +68,7 @@ func isCCW(p Poly) bool {
 		return true
 	}
 	var area float32
-	for i := 0; i < n; i++ {
+	for i := range n {
 		j := (i + 1) % n
 		area += p[i].X*p[j].Y - p[j].X*p[i].Y
 	}
@@ -84,7 +84,7 @@ func isConvex(p Poly) bool {
 	}
 	if !isCCW(p) {
 		// Reverse check for CW polygons
-		for i := 0; i < n; i++ {
+		for i := range n {
 			prev := p[(i-1+n)%n]
 			curr := p[i]
 			next := p[(i+1)%n]
@@ -95,7 +95,7 @@ func isConvex(p Poly) bool {
 		}
 		return true
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		prev := p[(i-1+n)%n]
 		curr := p[i]
 		next := p[(i+1)%n]
@@ -148,7 +148,7 @@ func triangulate(polygon Poly) []Poly {
 		n := len(poly)
 		earFound := false
 
-		for i := 0; i < n; i++ {
+		for i := range n {
 			prev := poly[(i-1+n)%n]
 			curr := poly[i]
 			next := poly[(i+1)%n]
@@ -160,7 +160,7 @@ func triangulate(polygon Poly) []Poly {
 
 			// Check if any other vertex is inside the triangle (prev, curr, next)
 			earIsClean := true
-			for j := 0; j < n; j++ {
+			for j := range n {
 				if j == (i-1+n)%n || j == i || j == (i+1)%n {
 					continue
 				}
@@ -236,11 +236,11 @@ func tryMerge(p1, p2 Poly) (Poly, bool) {
 	n1 := len(p1)
 	n2 := len(p2)
 
-	for i := 0; i < n1; i++ {
+	for i := range n1 {
 		a1 := p1[i]
 		b1 := p1[(i+1)%n1]
 
-		for j := 0; j < n2; j++ {
+		for j := range n2 {
 			a2 := p2[j]
 			b2 := p2[(j+1)%n2]
 

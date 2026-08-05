@@ -156,7 +156,7 @@ func TestQMeshRoundTrip(t *testing.T) {
 	}
 
 	// Verify it's valid JSON
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("output is not valid JSON: %v", err)
 	}

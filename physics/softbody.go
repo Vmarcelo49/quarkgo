@@ -16,39 +16,39 @@ type SoftBody struct {
 	Body
 
 	// Soft body properties
-	rigidity                       float32
-	enableAreaPreserving           bool
-	areaPreservingRate             float32
-	areaPreservingRigidity         float32
-	targetPreservationArea         float32
-	enableAreaStability            bool
+	rigidity               float32
+	enableAreaPreserving   bool
+	areaPreservingRate     float32
+	areaPreservingRigidity float32
+	targetPreservationArea float32
+	enableAreaStability    bool
 
-	particleSpecificMass           float32
-	enableParticleSpecificMass     bool
+	particleSpecificMass       float32
+	enableParticleSpecificMass bool
 
-	circumference                  float32
+	circumference                      float32
 	enablePassivationOfInternalSprings bool
 
-	enableSelfCollisions           bool
-	selfCollisionParticleRadius    float32
+	enableSelfCollisions        bool
+	selfCollisionParticleRadius float32
 
-	enableShapeMatching            bool
-	shapeMatchingRate              float32
-	applyShapeMatchingInternals    bool
+	enableShapeMatching               bool
+	shapeMatchingRate                 float32
+	applyShapeMatchingInternals       bool
 	enableShapeMatchingFixedTransform bool
-	shapeMatchingFixedPosition     Vec2
-	shapeMatchingFixedRotation     float32
+	shapeMatchingFixedPosition        Vec2
+	shapeMatchingFixedRotation        float32
 }
 
 // NewSoftBody constructs a SoftBody with default values.
 // Matches QSoftBody::QSoftBody in qsoftbody.cpp:68-72.
 func NewSoftBody() *SoftBody {
 	sb := &SoftBody{
-		rigidity:                   1.0,
-		areaPreservingRate:         0.8,
-		areaPreservingRigidity:     1.0,
-		particleSpecificMass:       1.0,
-		shapeMatchingRate:          0.4,
+		rigidity:               1.0,
+		areaPreservingRate:     0.8,
+		areaPreservingRigidity: 1.0,
+		particleSpecificMass:   1.0,
+		shapeMatchingRate:      0.4,
 	}
 	sb.bodyType = BodyTypeSoft
 	sb.mode = BodyModeDynamic
@@ -92,7 +92,9 @@ func (sb *SoftBody) SelfCollisionsEnabled() bool { return sb.enableSelfCollision
 func (sb *SoftBody) SelfCollisionsSpecifiedRadius() float32 { return sb.selfCollisionParticleRadius }
 
 // PassivationOfInternalSpringsEnabled reports whether internal springs are passive.
-func (sb *SoftBody) PassivationOfInternalSpringsEnabled() bool { return sb.enablePassivationOfInternalSprings }
+func (sb *SoftBody) PassivationOfInternalSpringsEnabled() bool {
+	return sb.enablePassivationOfInternalSprings
+}
 
 // ShapeMatchingEnabled reports whether shape matching is active.
 func (sb *SoftBody) ShapeMatchingEnabled() bool { return sb.enableShapeMatching }
@@ -101,7 +103,9 @@ func (sb *SoftBody) ShapeMatchingEnabled() bool { return sb.enableShapeMatching 
 func (sb *SoftBody) ShapeMatchingRate() float32 { return sb.shapeMatchingRate }
 
 // ShapeMatchingFixedTransformEnabled reports whether a fixed target transform is used.
-func (sb *SoftBody) ShapeMatchingFixedTransformEnabled() bool { return sb.enableShapeMatchingFixedTransform }
+func (sb *SoftBody) ShapeMatchingFixedTransformEnabled() bool {
+	return sb.enableShapeMatchingFixedTransform
+}
 
 // ShapeMatchingFixedPosition returns the fixed target position.
 func (sb *SoftBody) ShapeMatchingFixedPosition() Vec2 { return sb.shapeMatchingFixedPosition }
@@ -132,7 +136,10 @@ func (sb *SoftBody) SetRigidity(r float32) *SoftBody { sb.rigidity = r; return s
 func (sb *SoftBody) SetAreaPreservingRate(r float32) *SoftBody { sb.areaPreservingRate = r; return sb }
 
 // SetAreaPreservingRigidity sets the area preserving rigidity.
-func (sb *SoftBody) SetAreaPreservingRigidity(r float32) *SoftBody { sb.areaPreservingRigidity = r; return sb }
+func (sb *SoftBody) SetAreaPreservingRigidity(r float32) *SoftBody {
+	sb.areaPreservingRigidity = r
+	return sb
+}
 
 // SetAreaPreservingEnabled enables or disables area preserving.
 // When enabled, the target area is computed from the initial polygon area.
@@ -151,7 +158,10 @@ func (sb *SoftBody) SetTargetPreservationArea(a float32) *SoftBody {
 }
 
 // SetSelfCollisionsEnabled enables or disables particle self-collisions.
-func (sb *SoftBody) SetSelfCollisionsEnabled(b bool) *SoftBody { sb.enableSelfCollisions = b; return sb }
+func (sb *SoftBody) SetSelfCollisionsEnabled(b bool) *SoftBody {
+	sb.enableSelfCollisions = b
+	return sb
+}
 
 // SetSelfCollisionsSpecifiedRadius sets the self-collision particle radius.
 func (sb *SoftBody) SetSelfCollisionsSpecifiedRadius(r float32) *SoftBody {
@@ -383,7 +393,7 @@ func (sb *SoftBody) PreserveAreas() {
 		// Compute volume forces for each polygon vertex
 		n := len(mesh.polygon)
 		volumeForces := make([]Vec2, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			pp := mesh.polygon[(i-1+n)%n]
 			np := mesh.polygon[(i+1)%n]
 			vec := np.GlobalPosition().Sub(pp.GlobalPosition())
@@ -392,7 +402,7 @@ func (sb *SoftBody) PreserveAreas() {
 		}
 
 		// Apply forces via particle segments
-		for i := 0; i < n; i++ {
+		for i := range n {
 			pp := mesh.polygon[(i-1+n)%n]
 			np := mesh.polygon[(i+1)%n]
 			if !pp.enabled || !np.enabled {

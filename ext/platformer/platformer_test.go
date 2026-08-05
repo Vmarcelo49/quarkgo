@@ -69,7 +69,7 @@ func TestPlatformerRestsOnFloor(t *testing.T) {
 	pb.RegisterPostUpdate()
 
 	// Step — body should fall and land on floor
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		world.Update()
 	}
 
@@ -107,14 +107,14 @@ func TestPlatformerWalkOnFloor(t *testing.T) {
 	pb.RegisterPostUpdate()
 
 	// Step to settle
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		world.Update()
 	}
 
 	// Walk right
 	pb.Walk(1)
 	startX := pb.Position().X
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		world.Update()
 	}
 
@@ -148,7 +148,7 @@ func TestPlatformerJumpAndLand(t *testing.T) {
 	pb.RegisterPostUpdate()
 
 	// Step to settle on floor
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		world.Update()
 	}
 
@@ -160,7 +160,7 @@ func TestPlatformerJumpAndLand(t *testing.T) {
 	pb.Jump(5.0, true)
 
 	// Step — body should rise
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		world.Update()
 	}
 
@@ -172,7 +172,7 @@ func TestPlatformerJumpAndLand(t *testing.T) {
 	pb.ReleaseJump()
 
 	// Step until landing
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		world.Update()
 	}
 

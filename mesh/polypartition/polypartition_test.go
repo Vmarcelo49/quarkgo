@@ -1,6 +1,7 @@
 package polypartition
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/Vmarcelo49/quarkgo/physics"
@@ -102,13 +103,7 @@ func TestConvexPartitionFromParticles(t *testing.T) {
 	// Verify each particle in each sub-polygon is from the original set
 	for i, subPoly := range result {
 		for j, p := range subPoly {
-			found := false
-			for _, orig := range particles {
-				if p == orig {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(particles, p)
 			if !found {
 				t.Errorf("piece %d vertex %d is not from original particles", i, j)
 			}

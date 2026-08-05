@@ -25,14 +25,14 @@ func TestParallelNarrowphaseParity(t *testing.T) {
 		world.AddRigidBody(floor)
 
 		// 20 falling boxes
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			box := NewRigidBody()
 			box.AddMesh(NewRectMesh(Vec2{X: 16, Y: 16}, Vec2Zero(), Vec2Zero()))
 			box.SetPosition(Vec2{X: float32(i*25 + 10), Y: float32(i % 3 * 50)})
 			world.AddRigidBody(box)
 		}
 
-		for i := 0; i < steps; i++ {
+		for range steps {
 			world.Update()
 		}
 
@@ -100,7 +100,7 @@ func TestParallelNarrowphaseWithSoftBodies(t *testing.T) {
 	world.AddSoftBody(sb)
 
 	// Step — should not crash or race
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		world.Update()
 	}
 

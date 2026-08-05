@@ -11,9 +11,9 @@ import "sync"
 // QObjectPool<Contact> shared across all QWorld instances — a porting
 // hazard for concurrency (analysis doc §8.2 R4). In this Go port each
 // World owns its own ContactPool, which:
-//   1. Enables future per-World concurrency (Phase 5)
-//   2. Avoids global state contamination between independent worlds
-//   3. Has minimal overhead — sync.Pool is optimized for this access pattern
+//  1. Enables future per-World concurrency (Phase 5)
+//  2. Avoids global state contamination between independent worlds
+//  3. Has minimal overhead — sync.Pool is optimized for this access pattern
 //
 // Reference: analysis doc §7.5, §8.2 R4
 type ContactPool struct {
@@ -25,7 +25,7 @@ type ContactPool struct {
 func NewContactPool() *ContactPool {
 	return &ContactPool{
 		pool: sync.Pool{
-			New: func() interface{} { return &Contact{} },
+			New: func() any { return &Contact{} },
 		},
 	}
 }

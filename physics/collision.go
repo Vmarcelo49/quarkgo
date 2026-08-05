@@ -58,363 +58,207 @@ func GetCollisions(bodyA, bodyB *Body, pool *ContactPool, applyHotSolvers bool) 
 
 // --- Polygon vs Polygon (SAT + clipping) ---
 
-// polygonVsPolygon runs SAT between two polygon meshes and creates contacts
-// at the deepest penetrating vertices.
+// polygonVsPolygon runs SAT + edge clipping between two convex polygons.
+// Faithful port of QCollision::PolygonAndPolygon in qcollision.cpp:1087-1208.
 //
-// Approach: find the minimum penetration axis across all edges of both
-// polygons, then find the vertices of each polygon that are deepest inside
-// the other. Create contacts at those vertices.
+// Algorithm:
+//   A. SAT: test all edges of both polygons, find minimum penetration axis
+//   B. Find reference and incident edges using support points
+//   C. Clip incident edge against reference edge
+//   D. Create contacts at clipped points inside the reference edge
 func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
-        polyA := meshA.polygon
-        polyB := meshB.polygon
-        if len(polyA) < 3 || len(polyB) < 3 {
-                return nil
-        }
+	polyA := meshA.polygon
+	polyB := meshB.polygon
+	sizeA := len(polyA)
+	sizeB := len(polyB)
+	if sizeA < 3 || sizeB < 3 {
+		return nil
+	}
 
-        // Find the minimum penetration axis across all edges of both polygons.
-        // The normal points from A toward B.
-        var bestNormal Vec2
-        bestPenetration := float32(MaxWorldSize)
+	// A. SAT: find minimum penetration axis
+	// The C++ uses Perpendicular() (not .Perpendicular().Normalized()) but
+	// QVector::Perpendicular returns (y, -x) which is not normalized.
+	// The C++ ProjectToAxis uses Dot which works with unnormalized normals.
+	// We match the C++ exactly: use Perpendicular() (unnormalized).
+	minPenetration := float32(MaxWorldSize)
+	var refNormal Vec2
 
-        // Test polyA's edges — outward normal of A points away from A.
-        // If B overlaps on the outward side, the contact normal (A→B) = outward normal.
-        // If B overlaps on the inward side, the contact normal = -outward normal.
-        for _, edge := range polygonEdges(polyA) {
-                normal := edge.normal // outward from A
-                projA := projectPolygon(polyA, normal)
-                projB := projectPolygon(polyB, normal)
-                overlap := Min(projA.max, projB.max) - Max(projA.min, projB.min)
-                if overlap <= 0 {
-                        return nil // separating axis
-                }
-                // Determine contact normal direction (A→B)
-                var contactNormal Vec2
-                var pen float32
-                if projB.min >= projA.min {
-                        // B is on the outward side of A
-                        contactNormal = normal
-                        pen = projA.max - projB.min
-                } else {
-                        // B is on the inward side of A
-                        contactNormal = normal.Neg()
-                        pen = projB.max - projA.min
-                }
-                if pen < bestPenetration {
-                        bestPenetration = pen
-                        bestNormal = contactNormal
-                }
-        }
+	// Test all edges of both polygons
+	for polyIdx := 0; polyIdx < 2; polyIdx++ {
+		var refPoly []*Particle
+		var incPoly []*Particle
+		var refSize int
+		if polyIdx == 0 {
+			refPoly = polyA
+			incPoly = polyB
+			refSize = sizeA
+		} else {
+			refPoly = polyB
+			incPoly = polyA
+			refSize = sizeB
+		}
 
-        // Test polyB's edges — outward normal of B points away from B.
-        // Contact normal (A→B) = -outward normal if A is on outward side,
-        // or +outward normal if A is on inward side.
-        for _, edge := range polygonEdges(polyB) {
-                normal := edge.normal // outward from B
-                projA := projectPolygon(polyA, normal)
-                projB := projectPolygon(polyB, normal)
-                overlap := Min(projA.max, projB.max) - Max(projA.min, projB.min)
-                if overlap <= 0 {
-                        return nil // separating axis
-                }
-                var contactNormal Vec2 // A→B direction
-                var pen float32
-                if projA.min >= projB.min {
-                        // A is on the outward side of B → A→B = outward normal
-                        contactNormal = normal
-                        pen = projB.max - projA.min
-                } else {
-                        // A is on the inward side of B → A→B = -outward normal
-                        contactNormal = normal.Neg()
-                        pen = projA.max - projB.min
-                }
-                if pen < bestPenetration {
-                        bestPenetration = pen
-                        bestNormal = contactNormal
-                }
-        }
+		for s := 0; s < refSize; s++ {
+			s1 := refPoly[s]
+			s2 := refPoly[(s+1)%refSize]
+			edge := s2.GlobalPosition().Sub(s1.GlobalPosition())
+			// C++: (s2-s1).Normalized().Perpendicular()
+			// Perpendicular() = (y, -x)
+			sNormal := edge.Normalized().Perpendicular()
 
-        if bestPenetration <= 0 || bestPenetration >= MaxWorldSize {
-                return nil
-        }
+			// Project both polygons onto sNormal
+			refProj := projectToAxis(sNormal, refPoly)
+			incProj := projectToAxis(sNormal, incPoly)
 
-        // bestNormal points from A→B. The Manifold convention is B→A, so negate.
+			// C++ Project::Overlap: returns negative if overlapping
+			// if other.min < min: penetration = min - other.max
+			// else: penetration = other.min - max
+			var penetration float32
+			if incProj.min < refProj.min {
+				penetration = refProj.min - incProj.max
+			} else {
+				penetration = incProj.min - refProj.max
+			}
 
-        var contacts []*Contact
+			// C++: if penetration >= 0, return (separating axis found)
+			if penetration >= 0 {
+				return nil
+			}
 
-        // Find vertices of B that are inside A (penetrating from B into A)
-        for _, p := range polyB {
-                if pointInPolygon(p.GlobalPosition(), polyA) {
-                        // Find the penetration depth: distance from p to the nearest edge of A
-                        depth, edgeNormal := distanceToPolygon(p.GlobalPosition(), polyA)
-                        if depth >= 0 {
-                                c := pool.Get()
-                                c.Particle = p
-                                c.Position = p.GlobalPosition()
-                                // Normal should point from B→A (away from B, toward A)
-                                // edgeNormal points outward from A, so negate to get B→A
-                                c.Normal = edgeNormal
-                                c.Penetration = depth
-                                c.ReferenceParticles = nearestEdgeParticles(p.GlobalPosition(), polyA)
-                                contacts = append(contacts, c)
-                        }
-                }
-        }
+			penetration = Abs(penetration)
+			if penetration < minPenetration {
+				minPenetration = penetration
+				refNormal = sNormal
+			}
+		}
+	}
 
-        // Find vertices of A that are inside B (penetrating from A into B)
-        for _, p := range polyA {
-                if pointInPolygon(p.GlobalPosition(), polyB) {
-                        depth, edgeNormal := distanceToPolygon(p.GlobalPosition(), polyB)
-                        if depth >= 0 {
-                                c := pool.Get()
-                                c.Particle = p
-                                c.Position = p.GlobalPosition()
-                                // Normal should point from B→A (away from B, toward A)
-                                // edgeNormal points outward from B. Since the contact particle
-                                // is on A, the normal should point from B toward A = outward from B.
-                                c.Normal = edgeNormal
-                                c.Penetration = depth
-                                c.ReferenceParticles = nearestEdgeParticles(p.GlobalPosition(), polyB)
-                                contacts = append(contacts, c)
-                        }
-                }
-        }
+	// B. Find reference and incident edges using support points
+	// C++: project both polygons onto refNormal, find support points
+	supportProjA := projectToAxis(refNormal, polyA)
+	supportProjB := projectToAxis(refNormal, polyB)
 
-	_ = bestNormal // suppress unused variable
-        // No vertices inside = no collision
+	supportAIdx := supportProjA.maxIndex
+	supportBIdx := supportProjB.minIndex
+	if supportProjB.min < supportProjA.min {
+		supportAIdx = supportProjA.minIndex
+		supportBIdx = supportProjB.maxIndex
+	}
+
+	// Find the reference edge: the edge most perpendicular to refNormal
+	// (least parallel to refNormal = most parallel to the contact surface)
+	// C++: choose the edge with the smallest |dot(edge, refNormal)|
+
+	// polyA segment options
+	segPrevA := (supportAIdx - 1 + sizeA) % sizeA
+	segNextA := (supportAIdx + 1) % sizeA
+
+	segAOption1 := polyA[segNextA].GlobalPosition().Sub(polyA[supportAIdx].GlobalPosition())
+	segAOption2 := polyA[supportAIdx].GlobalPosition().Sub(polyA[segPrevA].GlobalPosition())
+
+	segAOption1Par := Abs(segAOption1.Dot(refNormal))
+	segAOption2Par := Abs(segAOption2.Dot(refNormal))
+
+	segmentA := [2]*Particle{polyA[supportAIdx], polyA[segNextA]}
+	segAPar := segAOption1Par
+	if segAOption2Par < segAOption1Par {
+		segmentA = [2]*Particle{polyA[segPrevA], polyA[supportAIdx]}
+		segAPar = segAOption2Par
+	}
+
+	// polyB segment options
+	segPrevB := (supportBIdx - 1 + sizeB) % sizeB
+	segNextB := (supportBIdx + 1) % sizeB
+
+	segBOption1 := polyB[segNextB].GlobalPosition().Sub(polyB[supportBIdx].GlobalPosition())
+	segBOption2 := polyB[supportBIdx].GlobalPosition().Sub(polyB[segPrevB].GlobalPosition())
+
+	segBOption1Par := Abs(segBOption1.Dot(refNormal))
+	segBOption2Par := Abs(segBOption2.Dot(refNormal))
+
+	segmentB := [2]*Particle{polyB[supportBIdx], polyB[segNextB]}
+	segBPar := segBOption1Par
+	if segBOption2Par < segBOption1Par {
+		segmentB = [2]*Particle{polyB[segPrevB], polyB[supportBIdx]}
+		segBPar = segBOption2Par
+	}
+
+	// C. Clip: the reference segment is the one most perpendicular to refNormal
+	var contacts []*Contact
+	if segBPar < segAPar {
+		// Reference is segmentB, incident is segmentA
+		clipContactParticles(segmentB, segmentA, pool, &contacts)
+		if len(contacts) == 0 {
+			clipContactParticles(segmentA, segmentB, pool, &contacts)
+		}
+	} else {
+		// Reference is segmentA, incident is segmentB
+		clipContactParticles(segmentA, segmentB, pool, &contacts)
+		if len(contacts) == 0 {
+			clipContactParticles(segmentB, segmentA, pool, &contacts)
+		}
+	}
+
 	return contacts
 }
 
-// edgeInfo holds an edge's normal and the two particles forming it.
-type edgeInfo struct {
-        normal Vec2
-        p1, p2 *Particle
+// projectToAxis projects a polygon onto an axis and returns min/max + indices.
+// Matches QCollision::ProjectToAxis in qcollision.cpp:1237-1258.
+func projectToAxis(normal Vec2, poly []*Particle) struct {
+	min, max float32
+	minIndex, maxIndex int
+} {
+	result := struct {
+		min, max float32
+		minIndex, maxIndex int
+	}{
+		min: MaxWorldSize,
+		max: -MaxWorldSize,
+	}
+	for i, p := range poly {
+		dist := p.GlobalPosition().Dot(normal)
+		if dist < result.min {
+			result.min = dist
+			result.minIndex = i
+		}
+		if dist > result.max {
+			result.max = dist
+			result.maxIndex = i
+		}
+	}
+	return result
 }
 
-// polygonEdges returns all edges of a polygon with their outward normals.
-// Assumes CW winding in screen coordinates (Y down).
-// Outward normal = (edge.Y, -edge.X) = Perpendicular() (points LEFT of edge
-// direction in screen coords = away from interior for CW).
-func polygonEdges(poly []*Particle) []edgeInfo {
-        n := len(poly)
-        edges := make([]edgeInfo, n)
-        for i := 0; i < n; i++ {
-                p1 := poly[i]
-                p2 := poly[(i+1)%n]
-                edge := p2.GlobalPosition().Sub(p1.GlobalPosition())
-                edges[i] = edgeInfo{
-                        normal: Vec2{X: edge.Y, Y: -edge.X}.Normalized(),
-                        p1:     p1,
-                        p2:     p2,
-                }
-        }
-        return edges
-}
-
-// distanceToPolygon computes the distance from a point to the nearest edge
-// of a convex polygon, and returns the outward normal of that edge.
-// If the point is inside the polygon, the distance is positive (penetration depth).
-// Assumes CW winding in screen coordinates (Y down).
-func distanceToPolygon(point Vec2, poly []*Particle) (float32, Vec2) {
-        n := len(poly)
-        bestDepth := float32(-MaxWorldSize)
-        var bestNormal Vec2
-        for i := 0; i < n; i++ {
-                p1 := poly[i].GlobalPosition()
-                p2 := poly[(i+1)%n].GlobalPosition()
-                edge := p2.Sub(p1)
-                // Outward normal for CW in screen coords: (edge.Y, -edge.X)
-                normal := Vec2{X: edge.Y, Y: -edge.X}.Normalized()
-                bridge := point.Sub(p1)
-                dist := bridge.Dot(normal) // positive = outside, negative = inside
-                if dist > bestDepth {
-                        bestDepth = dist
-                        bestNormal = normal
-                }
-        }
-        // If bestDepth < 0, the point is inside the polygon.
-        // Penetration depth = -bestDepth (positive).
-        if bestDepth <= 0 {
-                return -bestDepth, bestNormal
-        }
-        return 0, bestNormal
-}
-
-// findMinPenAxis tests all edges of `refPoly` as separating axes against
-// `incidentPoly`. Returns the axis with minimum penetration, the edge index
-// that produced it, and true if no separating axis was found (i.e., the
-// polygons are colliding). Returns false if a separating axis was found.
+// clipContactParticles clips incident edge against reference edge.
+// Matches QCollision::ClipContactParticles in qcollision.cpp:1210-1234.
 //
-// The returned normal points from refPoly toward incidentPoly (i.e., the
-// direction to push incidentPoly away from refPoly).
-func findMinPenAxis(refPoly, incidentPoly []*Particle) (normal Vec2, penetration float32, edgeIdx int, ok bool) {
-        n := len(refPoly)
-        bestPen := float32(MaxWorldSize)
-        bestIdx := 0
-        var bestNormal Vec2
+// Creates contacts for incident particles that are on the negative side
+// of the reference edge normal (inside the reference polygon).
+func clipContactParticles(refParticles, incParticles [2]*Particle, pool *ContactPool, contacts *[]*Contact) {
+	sv := refParticles[1].GlobalPosition().Sub(refParticles[0].GlobalPosition())
+	length := sv.Length()
+	if length < 1e-6 {
+		return
+	}
+	unit := sv.Div(length)
+	normal := unit.Perpendicular()
 
-        for i := 0; i < n; i++ {
-                p1 := refPoly[i]
-                p2 := refPoly[(i+1)%n]
-                edge := p2.GlobalPosition().Sub(p1.GlobalPosition())
-                // Outward normal (for CW winding): (edge.Y, -edge.X)
-                outwardNormal := Vec2{X: edge.Y, Y: -edge.X}.Normalized()
-
-                projRef := projectPolygon(refPoly, outwardNormal)
-                projInc := projectPolygon(incidentPoly, outwardNormal)
-
-                // Check for overlap
-                // Overlap = min(maxRef, maxInc) - max(minRef, minInc)
-                overlap := Min(projRef.max, projInc.max) - Max(projRef.min, projInc.min)
-                if overlap <= 0 {
-                        // Separating axis found
-                        return Vec2Zero(), 0, 0, false
-                }
-
-                // The penetration is the overlap, but we need to determine the
-                // contact normal direction. The incident polygon is on the side
-                // of the outward normal if projInc.min > projRef.min (incident
-                // is "above" ref on this axis), or on the opposite side if
-                // projInc.max < projRef.max (incident is "below" ref).
-                //
-                // For the contact normal to point from ref toward incident:
-                //   - If incident is on the outward side → normal = outwardNormal
-                //   - If incident is on the inward side → normal = -outwardNormal
-                //   - We pick the direction that gives the smaller penetration
-                //
-                // Actually, in standard SAT, the overlap is always positive if
-                // the polygons intersect, and the normal points from ref toward
-                // incident. The penetration is the overlap amount.
-                //
-                // The key: the contact normal should point from the reference
-                // body toward the incident body. If the incident polygon is on
-                // the outward side of the reference edge, the outward normal
-                // points toward it. If it's on the inward side, we need to flip.
-
-                // Determine which side the incident polygon is on
-                // by comparing the centroids
-                var pen float32
-                if projInc.min >= projRef.min {
-                        // Incident is on the positive (outward) side
-                        pen = projRef.max - projInc.min
-                        if pen < bestPen {
-                                bestPen = pen
-                                bestIdx = i
-                                bestNormal = outwardNormal
-                        }
-                } else if projInc.max <= projRef.max {
-                        // Incident is on the negative (inward) side
-                        pen = projInc.max - projRef.min
-                        if pen < bestPen {
-                                bestPen = pen
-                                bestIdx = i
-                                bestNormal = outwardNormal.Neg()
-                        }
-                } else {
-                        // Incident spans the entire reference projection — use the overlap
-                        if overlap < bestPen {
-                                bestPen = overlap
-                                bestIdx = i
-                                bestNormal = outwardNormal
-                        }
-                }
-        }
-
-        return bestNormal, bestPen, bestIdx, true
+	for i := 0; i < 2; i++ {
+		p := incParticles[i]
+		bv := p.GlobalPosition().Sub(refParticles[0].GlobalPosition())
+		dist := bv.Dot(normal)
+		if dist <= 0 {
+			proj := bv.Dot(unit)
+			if proj >= 0.0 && proj <= length {
+				c := pool.Get()
+				c.Configure(p, p.GlobalPosition(), normal, Abs(dist), []*Particle{refParticles[0], refParticles[1]})
+				*contacts = append(*contacts, c)
+			}
+		}
+	}
 }
 
-// projectResult holds the min/max projection of a polygon onto an axis.
-type projectResult struct {
-        min, max    float32
-        minIndex    int
-}
-
-// projectPolygon projects a polygon onto an axis (unit normal).
-// Matches QCollision::ProjectToAxis.
-func projectPolygon(poly []*Particle, axis Vec2) projectResult {
-        if len(poly) == 0 {
-                return projectResult{}
-        }
-        min := poly[0].GlobalPosition().Dot(axis)
-        max := min
-        minIndex := 0
-        for i := 1; i < len(poly); i++ {
-                p := poly[i].GlobalPosition().Dot(axis)
-                if p < min {
-                        min = p
-                        minIndex = i
-                }
-                if p > max {
-                        max = p
-                }
-        }
-        return projectResult{min: min, max: max, minIndex: minIndex}
-}
-
-// findIncidentEdge finds the edge of poly most anti-parallel to `normal`.
-// Returns the two particles forming that edge.
-func findIncidentEdge(poly []*Particle, normal Vec2) [2]*Particle {
-        n := len(poly)
-        bestDot := float32(1.0) // we want the most negative dot
-        bestIdx := 0
-        for i := 0; i < n; i++ {
-                p1 := poly[i]
-                p2 := poly[(i+1)%n]
-                edge := p2.GlobalPosition().Sub(p1.GlobalPosition())
-                edgeNormal := edge.Perpendicular().Normalized()
-                dot := edgeNormal.Dot(normal)
-                if dot < bestDot {
-                        bestDot = dot
-                        bestIdx = i
-                }
-        }
-        return [2]*Particle{poly[bestIdx], poly[(bestIdx+1)%n]}
-}
-
-// clipEdges clips the incident edge against the reference edge and produces
-// contacts. Matches QCollision::ClipContactParticles in qcollision.cpp:1210-1234.
-//
-// `normal` points from the incident body toward the reference body (i.e.,
-// the direction to push the incident body to resolve the collision).
-// `penetration` is the overlap depth.
-func clipEdges(refParts, incParts [2]*Particle, normal Vec2, penetration float32, pool *ContactPool) []*Contact {
-        var contacts []*Contact
-
-        refA := refParts[0].GlobalPosition()
-        refB := refParts[1].GlobalPosition()
-        refEdge := refB.Sub(refA)
-        refLen := refEdge.Length()
-        if refLen < 1e-6 {
-                return nil
-        }
-        refDir := refEdge.Div(refLen)
-
-        // For each incident particle, check if it's on the penetrating side
-        // of the reference edge. The normal points from bodyB→bodyA, so
-        // incident particles on the POSITIVE side of the normal are penetrating
-        // (they've pushed through into bodyA's side).
-        for _, incP := range incParts {
-                incPos := incP.GlobalPosition()
-                bridge := incPos.Sub(refA)
-                dist := bridge.Dot(normal)
-                if dist > 0 {
-                        // Penetrating: dist is the depth along the normal
-                        // Check projection is within the reference edge segment (with small tolerance)
-                        proj := bridge.Dot(refDir)
-                        if proj >= -1 && proj <= refLen+1 {
-                                c := pool.Get()
-                                c.Particle = incP
-                                c.Position = incPos
-                                c.Normal = normal
-                                c.Penetration = dist
-                                c.ReferenceParticles = []*Particle{refParts[0], refParts[1]}
-                                contacts = append(contacts, c)
-                        }
-                }
-        }
-
-        return contacts
-}
-
+// ---
 // --- Circle vs Circle ---
 
 // circleVsCircle runs circle-circle collision detection.
@@ -660,47 +504,3 @@ func pointInPolygon(point Vec2, poly []*Particle) bool {
 	if n < 3 {
 		return false
 	}
-	for i := 0; i < n; i++ {
-		p1 := poly[i].GlobalPosition()
-		p2 := poly[(i+1)%n].GlobalPosition()
-		edge := p2.Sub(p1)
-		toPoint := point.Sub(p1)
-		cross := edge.X*toPoint.Y - edge.Y*toPoint.X
-		if cross < 0 {
-			return false
-		}
-	}
-	return true
-}
-
-// nearestEdgeParticles returns the 2 particles forming the nearest edge
-// of a polygon to the given point.
-func nearestEdgeParticles(point Vec2, poly []*Particle) []*Particle {
-	n := len(poly)
-	if n < 2 {
-		return nil
-	}
-	bestIdx := 0
-	bestDist := float32(MaxWorldSize)
-	for i := 0; i < n; i++ {
-		p1 := poly[i].GlobalPosition()
-		p2 := poly[(i+1)%n].GlobalPosition()
-		edge := p2.Sub(p1)
-		edgeLen := edge.Length()
-		if edgeLen < 1e-6 {
-			continue
-		}
-		edgeDir := edge.Div(edgeLen)
-		bridge := point.Sub(p1)
-		proj := bridge.Dot(edgeDir)
-		if proj < 0 { proj = 0 }
-		if proj > edgeLen { proj = edgeLen }
-		closest := p1.Add(edgeDir.Mul(proj))
-		dist := point.Sub(closest).Length()
-		if dist < bestDist {
-			bestDist = dist
-			bestIdx = i
-		}
-	}
-	return []*Particle{poly[bestIdx], poly[(bestIdx+1)%n]}
-}

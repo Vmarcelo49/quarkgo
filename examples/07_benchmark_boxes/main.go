@@ -14,6 +14,8 @@ type BenchmarkBoxesScene struct {
 
 func NewBenchmarkBoxesScene() *BenchmarkBoxesScene {
 	scene := common.NewScene(1024, 600)
+	scene.Renderer.Antialias = false
+	scene.Renderer.ShowParticles = false
 
 	// Floor
 	scene.AddStaticRect(512, 550, 960, 64)
@@ -26,8 +28,8 @@ func NewBenchmarkBoxesScene() *BenchmarkBoxesScene {
 	boxHeapCount := 10
 	startX := float32(512) - float32(boxGroupCount*32)/2
 	startY := float32(550) - 48
-	for row := 0; row < boxHeapCount; row++ {
-		for col := 0; col < boxGroupCount; col++ {
+	for row := range boxHeapCount {
+		for col := range boxGroupCount {
 			x := startX + float32(col)*32
 			y := startY - float32(row)*32
 			scene.AddRectBodySized(x, y, 32, 32)

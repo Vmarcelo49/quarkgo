@@ -27,7 +27,7 @@ func NewRaycastsScene() *RaycastsScene {
 	scene.Renderer.ShowSprings = true
 
 	// 15 random bodies
-	for i := 0; i < 15; i++ {
+	for range 15 {
 		x := float32(rand.Intn(800) + 100)
 		y := float32(rand.Intn(400) + 100)
 		switch rand.Intn(3) {
@@ -49,7 +49,7 @@ func NewRaycastsScene() *RaycastsScene {
 	// 90 raycasts from center, length 1000
 	center := physics.Vec2{X: 400, Y: 400}
 	numRays := 90
-	for i := 0; i < numRays; i++ {
+	for i := range numRays {
 		angle := float32(i) / float32(numRays) * physics.Pi * 2
 		dir := physics.Vec2{X: physics.Cos(angle) * 1000, Y: physics.Sin(angle) * 1000}
 		ray := physics.NewRaycast(center, dir, true)

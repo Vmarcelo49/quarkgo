@@ -31,8 +31,8 @@ func NewMixedBodiesScene() *MixedBodiesScene {
 
 	// Random primitive grid: 3 rows × 7 cols
 	startX, startY := float32(128), float32(100)
-	for row := 0; row < 3; row++ {
-		for col := 0; col < 7; col++ {
+	for row := range 3 {
+		for col := range 7 {
 			x := startX + float32(col)*96
 			y := startY - float32(row)*64
 			r := float32(rand.Intn(32) + 16) // 16..47

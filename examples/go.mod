@@ -1,6 +1,6 @@
 module github.com/Vmarcelo49/quarkgo/examples
 
-go 1.25.0
+go 1.26
 
 require (
 	github.com/Vmarcelo49/quarkgo v0.0.0

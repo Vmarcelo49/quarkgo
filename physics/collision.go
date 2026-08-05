@@ -555,7 +555,7 @@ func circleVsPolygon(circleMesh, polygonMesh *Mesh, pool *ContactPool) []*Contac
 			// Nearest edge
 			edgeVec := npPos.Sub(pPos)
 			edgeVecUnit := edgeVec.Normalized()
-			edgeVecNormal := edgeVecUnit.Perpendicular()
+			edgeVecNormal := Vec2{X: -edgeVec.Y, Y: edgeVec.X}.Normalized()
 
 			circleToEdgeBegin := cPos.Sub(pPos)
 			pen := circleToEdgeBegin.Dot(edgeVecNormal)

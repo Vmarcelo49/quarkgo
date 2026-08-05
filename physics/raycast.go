@@ -1,5 +1,7 @@
 package physics
 
+import "github.com/chewxy/math32"
+
 // Raycast casts a ray into the world and reports collision contacts.
 // Matches QRaycast in qraycast.h, qraycast.cpp.
 //
@@ -99,12 +101,12 @@ func RaycastTo(world *World, rayPosition, rayVector Vec2, collidableLayers int, 
 	rayEnd := rayPosition.Add(rayVector)
 	rayAABB := AABB{
 		Min: Vec2{
-			X: Min(rayPosition.X, rayEnd.X),
-			Y: Min(rayPosition.Y, rayEnd.Y),
+			X: min(rayPosition.X, rayEnd.X),
+			Y: min(rayPosition.Y, rayEnd.Y),
 		},
 		Max: Vec2{
-			X: Max(rayPosition.X, rayEnd.X),
-			Y: Max(rayPosition.Y, rayEnd.Y),
+			X: max(rayPosition.X, rayEnd.X),
+			Y: max(rayPosition.Y, rayEnd.Y),
 		},
 	}
 
@@ -177,11 +179,11 @@ func raycastToParticles(body *Body, mesh *Mesh, rayPos, rayVec, rayNormal Vec2, 
 		}
 
 		// Perpendicular distance from ray to particle center (absolute).
-		perpDist := Abs(toParticle.Dot(rayNormal))
+		perpDist := math32.Abs(toParticle.Dot(rayNormal))
 
 		if perpDist < r {
 			// Contact position is on the circle surface, at the ray entry point.
-			offset := Sqrt(r*r - perpDist*perpDist)
+			offset := math32.Sqrt(r*r - perpDist*perpDist)
 			contactPos := rayPos.Add(rayUnit.Mul(proj - offset))
 			distance := (contactPos.Sub(rayPos)).Length()
 

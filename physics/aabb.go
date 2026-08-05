@@ -58,12 +58,12 @@ func (a AABB) IsCollidingWith(other AABB) bool {
 func Combine(b1, b2 AABB) AABB {
 	return AABB{
 		Min: Vec2{
-			X: Min(b1.Min.X, b2.Min.X),
-			Y: Min(b1.Min.Y, b2.Min.Y),
+			X: min(b1.Min.X, b2.Min.X),
+			Y: min(b1.Min.Y, b2.Min.Y),
 		},
 		Max: Vec2{
-			X: Max(b1.Max.X, b2.Max.X),
-			Y: Max(b1.Max.Y, b2.Max.Y),
+			X: max(b1.Max.X, b2.Max.X),
+			Y: max(b1.Max.Y, b2.Max.Y),
 		},
 	}
 }

@@ -101,7 +101,7 @@ func BenchmarkSoftBodies(b *testing.B) {
 
 // BenchmarkWorldCreation benchmarks world + body setup (no simulation).
 func BenchmarkWorldCreation(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		world := NewWorld(WithGravity(Vec2{X: 0, Y: 0.2}), WithIterations(4))
 		for j := range 100 {
 			box := NewRigidBody()

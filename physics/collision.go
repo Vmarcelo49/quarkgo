@@ -1,5 +1,7 @@
 package physics
 
+import "github.com/chewxy/math32"
+
 // GetCollisions runs narrowphase collision detection between two bodies
 // and returns a list of contacts. Matches QWorld::GetCollisions (static)
 // in qworld.cpp:927-1067.
@@ -213,10 +215,10 @@ func testVertexVsPolygon(vertex *Particle, poly []*Particle, polyPositions []Vec
 		edgeVecNormal := edgeVecUnit.Perpendicular()
 		circleToEdgeBegin := cPos.Sub(pPos)
 		circleToEdgePenetration := circleToEdgeBegin.Dot(edgeVecNormal)
-		if Abs(circleToEdgePenetration) < nearestEdgeMinDist {
+		if math32.Abs(circleToEdgePenetration) < nearestEdgeMinDist {
 			circleToEdgeRangeProject := circleToEdgeBegin.Dot(edgeVecUnit)
 			if circleToEdgeRangeProject >= 0.0 && circleToEdgeRangeProject <= edgeVec.Length() {
-				nearestEdgeMinDist = Abs(circleToEdgePenetration)
+				nearestEdgeMinDist = math32.Abs(circleToEdgePenetration)
 				nearestEdgePenetration = circleToEdgePenetration
 				nearestEdgeParticles[0] = p
 				nearestEdgeParticles[1] = np
@@ -225,7 +227,7 @@ func testVertexVsPolygon(vertex *Particle, poly []*Particle, polyPositions []Vec
 		}
 	}
 
-	nearestParticlePenetration := Sqrt(nearestParticlePenetrationSq)
+	nearestParticlePenetration := math32.Sqrt(nearestParticlePenetrationSq)
 
 	var voronoiRegion int
 	if nearestEdgeParticles[0] == nil {
@@ -437,7 +439,7 @@ func polygonVsPolygonParticles(particlesA, particlesB []*Particle, pool *Contact
 			// Separating axis found — polygons don't overlap.
 			return nil
 		}
-		penetration = Abs(penetration)
+		penetration = math32.Abs(penetration)
 		if penetration < minPenetration {
 			minPenetration = penetration
 			refNormal = sNormal
@@ -466,8 +468,8 @@ func polygonVsPolygonParticles(particlesA, particlesB []*Particle, pool *Contact
 	segPointNextA := (supportPointAIndex + 1) % sizeA
 	segmentAOption1 := particlesA[segPointNextA].GlobalPosition().Sub(particlesA[segPointA].GlobalPosition())
 	segmentAOption2 := particlesA[segPointA].GlobalPosition().Sub(particlesA[segPointPrevA].GlobalPosition())
-	segmentAOption1ParallelRate := Abs(segmentAOption1.Dot(refNormal))
-	segmentAOption2ParallelRate := Abs(segmentAOption2.Dot(refNormal))
+	segmentAOption1ParallelRate := math32.Abs(segmentAOption1.Dot(refNormal))
+	segmentAOption2ParallelRate := math32.Abs(segmentAOption2.Dot(refNormal))
 
 	segmentA := [2]*Particle{particlesA[segPointA], particlesA[segPointNextA]}
 	segmentAParallelRate := segmentAOption1ParallelRate
@@ -482,8 +484,8 @@ func polygonVsPolygonParticles(particlesA, particlesB []*Particle, pool *Contact
 	segPointNextB := (supportPointBIndex + 1) % sizeB
 	segmentBOption1 := particlesB[segPointNextB].GlobalPosition().Sub(particlesB[segPointB].GlobalPosition())
 	segmentBOption2 := particlesB[segPointB].GlobalPosition().Sub(particlesB[segPointPrevB].GlobalPosition())
-	segmentBOption1ParallelRate := Abs(segmentBOption1.Dot(refNormal))
-	segmentBOption2ParallelRate := Abs(segmentBOption2.Dot(refNormal))
+	segmentBOption1ParallelRate := math32.Abs(segmentBOption1.Dot(refNormal))
+	segmentBOption2ParallelRate := math32.Abs(segmentBOption2.Dot(refNormal))
 
 	segmentB := [2]*Particle{particlesB[segPointB], particlesB[segPointNextB]}
 	segmentBParallelRate := segmentBOption1ParallelRate
@@ -592,7 +594,7 @@ func findMinPenAxis(refPoly, incidentPoly []*Particle) (normal Vec2, penetration
 
 		// Check for overlap
 		// Overlap = min(maxRef, maxInc) - max(minRef, minInc)
-		overlap := Min(projRef.max, projInc.max) - Max(projRef.min, projInc.min)
+		overlap := min(projRef.max, projInc.max) - max(projRef.min, projInc.min)
 		if overlap <= 0 {
 			// Separating axis found
 			return Vec2Zero(), 0, 0, false
@@ -736,7 +738,7 @@ func clipEdges(refParts, incParts [2]*Particle, pool *ContactPool) []*Contact {
 				c.Particle = incP
 				c.Position = incPos
 				c.Normal = normal
-				c.Penetration = Abs(dist)
+				c.Penetration = math32.Abs(dist)
 				c.ReferenceParticles = []*Particle{refParts[0], refParts[1]}
 				contacts = append(contacts, c)
 			}
@@ -770,7 +772,7 @@ func circleVsCircle(meshA, meshB *Mesh, pool *ContactPool, bodyA, bodyB *Body) [
 			distSq := diff.LengthSquared()
 			rSum := pA.Radius() + pB.Radius()
 			if distSq < rSum*rSum && distSq > 1e-8 {
-				dist := Sqrt(distSq)
+				dist := math32.Sqrt(distSq)
 				var normal Vec2
 				if velocitySensitive {
 					// Use previous positions for stable normals
@@ -863,10 +865,10 @@ func circleVsPolygon(circleMesh, polygonMesh *Mesh, pool *ContactPool) []*Contac
 			edgeVecNormal := edgeVecUnit.Perpendicular()
 			circleToEdgeBegin := cPos.Sub(pPos)
 			circleToEdgePenetration := circleToEdgeBegin.Dot(edgeVecNormal)
-			if Abs(circleToEdgePenetration) < nearestEdgeMinDist {
+			if math32.Abs(circleToEdgePenetration) < nearestEdgeMinDist {
 				circleToEdgeRangeProject := circleToEdgeBegin.Dot(edgeVecUnit)
 				if circleToEdgeRangeProject >= 0.0 && circleToEdgeRangeProject <= edgeVec.Length() {
-					nearestEdgeMinDist = Abs(circleToEdgePenetration)
+					nearestEdgeMinDist = math32.Abs(circleToEdgePenetration)
 					nearestEdgePenetration = circleToEdgePenetration
 					nearestEdgeParticles[0] = p
 					nearestEdgeParticles[1] = np
@@ -875,7 +877,7 @@ func circleVsPolygon(circleMesh, polygonMesh *Mesh, pool *ContactPool) []*Contac
 			}
 		}
 
-		nearestParticlePenetration := Sqrt(nearestParticlePenetrationSq)
+		nearestParticlePenetration := math32.Sqrt(nearestParticlePenetrationSq)
 
 		// a3. Define the Voronoi region: 0=vertex, 1=edge, 2=inside.
 		var voronoiRegion int
@@ -994,7 +996,7 @@ func LineIntersectionLine(d1A, d1B, d2A, d2B Vec2) Vec2 {
 	r := d1B.Sub(d1A)
 	s := d2B.Sub(d2A)
 	denom := r.X*s.Y - r.Y*s.X
-	if Abs(denom) < 1e-6 {
+	if math32.Abs(denom) < 1e-6 {
 		return Vec2NaN()
 	}
 	diff := d2A.Sub(d1A)
@@ -1040,10 +1042,10 @@ func pointInPolygonWN(point Vec2, polygon []*Particle) bool {
 			sideVecPerp := sideVec.Perpendicular()
 			s1ToPoint := s1.Sub(point)
 			rayDotSidePerp := ray.Dot(sideVecPerp)
-			if Abs(rayDotSidePerp) > 1e-6 {
+			if math32.Abs(rayDotSidePerp) > 1e-6 {
 				t := s1ToPoint.Dot(sideVecPerp) / rayDotSidePerp
 				sideDotRayPerp := sideVec.Dot(rayPerp)
-				if Abs(sideDotRayPerp) > 1e-6 {
+				if math32.Abs(sideDotRayPerp) > 1e-6 {
 					u := s1ToPoint.Neg().Dot(rayPerp) / sideDotRayPerp
 					// Check intersection between the ray and the side vector.
 					//
@@ -1138,10 +1140,10 @@ func findNearestSideOfPolygon(point Vec2, polygonParticles []*Particle, checkSid
 			continue
 		}
 
-		if Abs(dist) < minDistance {
+		if math32.Abs(dist) < minDistance {
 			resA = pi
 			resB = npi
-			minDistance = Abs(dist)
+			minDistance = math32.Abs(dist)
 		}
 	}
 	return resA, resB

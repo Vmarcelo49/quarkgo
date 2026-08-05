@@ -1,6 +1,10 @@
 package physics
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/chewxy/math32"
+)
 
 // Mesh is the shape + topology container for a body. Matches QMesh in
 // qmesh.h, qmesh.cpp.
@@ -86,7 +90,7 @@ type MeshData struct {
 // NewMesh creates an empty mesh.
 func NewMesh() *Mesh {
 	return &Mesh{
-		minAngleConstraintOfPolygon:  Pi * 0.3,
+		minAngleConstraintOfPolygon:  math32.Pi * 0.3,
 		polygonBisectorsNeedsUpdate:  true,
 		subConvexPolygonsNeedsUpdate: true,
 	}
@@ -645,12 +649,12 @@ func GenerateRectangleMeshData(size, centerPosition, grid Vec2, particleRadius f
 // rings of internal particles. Matches QMesh::GeneratePolygonMeshData.
 func GeneratePolygonMeshData(radius float32, sideCount int, centerPosition Vec2, polarGrid int, particleRadius float32) MeshData {
 	res := MeshData{}
-	anglePart := (Pi * 2) / float32(sideCount)
+	anglePart := (math32.Pi * 2) / float32(sideCount)
 
 	// Boundary particles, polygon, and springs
 	for i := range sideCount {
 		curAng := anglePart * float32(i)
-		curNorm := Vec2{X: Cos(curAng), Y: Sin(curAng)}
+		curNorm := Vec2{X: math32.Cos(curAng), Y: math32.Sin(curAng)}
 		nPos := centerPosition.Add(curNorm.Mul(radius))
 		res.ParticlePositions = append(res.ParticlePositions, nPos)
 		res.ParticleRadValues = append(res.ParticleRadValues, particleRadius)
@@ -668,7 +672,7 @@ func GeneratePolygonMeshData(radius float32, sideCount int, centerPosition Vec2,
 			curRadius := radiusPart * float32(i)
 			for n := range sideCount {
 				curAng := anglePart * float32(n)
-				curNorm := Vec2{X: Cos(curAng), Y: Sin(curAng)}
+				curNorm := Vec2{X: math32.Cos(curAng), Y: math32.Sin(curAng)}
 				nPos := centerPosition.Add(curNorm.Mul(curRadius))
 				res.ParticlePositions = append(res.ParticlePositions, nPos)
 				res.ParticleRadValues = append(res.ParticleRadValues, particleRadius)

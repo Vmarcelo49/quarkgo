@@ -1,5 +1,7 @@
 package physics
 
+import "github.com/chewxy/math32"
+
 // AngleConstraint is a 3-particle angle constraint. Matches QAngleConstraint
 // in qangleconstraint.h, qangleconstraint.cpp.
 //
@@ -80,21 +82,21 @@ func AngleOfParticlesWithLocalPositions(pA, pB, pC *Particle) float32 {
 	cosA := toNext.Dot(toPrev) / (prevLen * nextLen)
 	sinA := toNext.Dot(toPrev.Perpendicular()) / (prevLen * nextLen)
 
-	angleRad := Atan2(sinA, cosA)
+	angleRad := math32.Atan2(sinA, cosA)
 	if angleRad < 0 {
-		angleRad = (Pi * 2.0) - Abs(angleRad)
+		angleRad = (math32.Pi * 2.0) - math32.Abs(angleRad)
 	}
 	return angleRad
 }
 
 // --- Getters ---
 
-func (ac *AngleConstraint) ParticleA() *Particle { return ac.pA }
-func (ac *AngleConstraint) ParticleB() *Particle { return ac.pB }
-func (ac *AngleConstraint) ParticleC() *Particle { return ac.pC }
-func (ac *AngleConstraint) MinAngle() float32    { return ac.minAngle }
-func (ac *AngleConstraint) MaxAngle() float32    { return ac.maxAngle }
-func (ac *AngleConstraint) Rigidity() float32    { return ac.rigidity }
+func (ac *AngleConstraint) ParticleA() *Particle  { return ac.pA }
+func (ac *AngleConstraint) ParticleB() *Particle  { return ac.pB }
+func (ac *AngleConstraint) ParticleC() *Particle  { return ac.pC }
+func (ac *AngleConstraint) MinAngle() float32     { return ac.minAngle }
+func (ac *AngleConstraint) MaxAngle() float32     { return ac.maxAngle }
+func (ac *AngleConstraint) Rigidity() float32     { return ac.rigidity }
 func (ac *AngleConstraint) Enabled() bool         { return ac.enabled }
 func (ac *AngleConstraint) CurrentAngle() float32 { return ac.currentAngle }
 
@@ -136,9 +138,9 @@ func (ac *AngleConstraint) Update(specifiedRigidity float32, addToAccumulatedFor
 	cosA := toNext.Dot(toPrev) / (prevLen * nextLen)
 	sinA := toNext.Dot(toPrev.Perpendicular()) / (prevLen * nextLen)
 
-	angleRad := Atan2(sinA, cosA)
+	angleRad := math32.Atan2(sinA, cosA)
 	if angleRad < 0 {
-		angleRad = (Pi * 2.0) - Abs(angleRad)
+		angleRad = (math32.Pi * 2.0) - math32.Abs(angleRad)
 	}
 
 	if ac.beginToSaveAngles {

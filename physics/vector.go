@@ -1,5 +1,7 @@
 package physics
 
+import "github.com/chewxy/math32"
+
 // Vec2 is a 2D float32 vector. Matches QVector in qvector.h.
 //
 // Operations preserve the C++ engine's behavior, including:
@@ -8,7 +10,7 @@ package physics
 //
 // Reference: QuarkPhysics/qvector.h, qvector.cpp
 type Vec2 struct {
-        X, Y float32
+	X, Y float32
 }
 
 // Vec2Zero returns the zero vector (0, 0).
@@ -36,7 +38,7 @@ func float32NaN() float32 { return float32(mathNaN()) }
 // IsNaN reports whether both components are NaN. Matches QVector::isNaN
 // in qvector.h:183-188 (returns true only if BOTH x and y are NaN).
 func (v Vec2) IsNaN() bool {
-        return IsNaN(v.X) && IsNaN(v.Y)
+	return math32.IsNaN(v.X) && math32.IsNaN(v.Y)
 }
 
 // Add returns v + other.
@@ -59,23 +61,23 @@ func (v Vec2) Neg() Vec2 { return Vec2{X: -v.X, Y: -v.Y} }
 
 // AddAssign mutates v in place: v += other. Returns v for chaining.
 func (v *Vec2) AddAssign(other Vec2) *Vec2 {
-        v.X += other.X
-        v.Y += other.Y
-        return v
+	v.X += other.X
+	v.Y += other.Y
+	return v
 }
 
 // SubAssign mutates v in place: v -= other.
 func (v *Vec2) SubAssign(other Vec2) *Vec2 {
-        v.X -= other.X
-        v.Y -= other.Y
-        return v
+	v.X -= other.X
+	v.Y -= other.Y
+	return v
 }
 
 // MulAssign mutates v in place: v *= scalar.
 func (v *Vec2) MulAssign(s float32) *Vec2 {
-        v.X *= s
-        v.Y *= s
-        return v
+	v.X *= s
+	v.Y *= s
+	return v
 }
 
 // Equal reports whether v and other have identical components.
@@ -96,21 +98,21 @@ func (v Vec2) LengthSquared() float32 { return v.X*v.X + v.Y*v.Y }
 // Length returns |v|. If you only need to compare lengths, use
 // LengthSquared to avoid the sqrt.
 // Matches QVector::Length in qvector.h:164-166.
-func (v Vec2) Length() float32 { return Sqrt(v.LengthSquared()) }
+func (v Vec2) Length() float32 { return math32.Sqrt(v.LengthSquared()) }
 
 // Normalized returns the unit vector in the direction of v.
 // Returns Vec2Zero() if v is zero-length — never returns NaN.
 // Matches QVector::Normalized in qvector.h:167-175.
 func (v Vec2) Normalized() Vec2 {
-        if v.X == 0 && v.Y == 0 {
-                return Vec2Zero()
-        }
-        ls := v.LengthSquared()
-        if ls == 0 {
-                return Vec2Zero()
-        }
-        l := Sqrt(ls)
-        return Vec2{X: v.X / l, Y: v.Y / l}
+	if v.X == 0 && v.Y == 0 {
+		return Vec2Zero()
+	}
+	ls := v.LengthSquared()
+	if ls == 0 {
+		return Vec2Zero()
+	}
+	l := math32.Sqrt(ls)
+	return Vec2{X: v.X / l, Y: v.Y / l}
 }
 
 // Perpendicular returns the vector (v.Y, -v.X), rotated 90° clockwise.
@@ -120,71 +122,74 @@ func (v Vec2) Perpendicular() Vec2 { return Vec2{X: v.Y, Y: -v.X} }
 // Rotated returns v rotated by radianAngle (radians, clockwise in screen space).
 // Matches QVector::Rotated in qvector.cpp.
 func (v Vec2) Rotated(radianAngle float32) Vec2 {
-        c := Cos(radianAngle)
-        s := Sin(radianAngle)
-        return Vec2{
-                X: v.X*c - v.Y*s,
-                Y: v.X*s + v.Y*c,
-        }
+	c := math32.Cos(radianAngle)
+	s := math32.Sin(radianAngle)
+	return Vec2{
+		X: v.X*c - v.Y*s,
+		Y: v.X*s + v.Y*c,
+	}
 }
 
 // AngleToUnitVector returns the unit vector pointing in the direction of
 // radianAngle. Matches QVector::AngleToUnitVector in qvector.cpp.
 func AngleToUnitVector(radianAngle float32) Vec2 {
-        return Vec2{X: Cos(radianAngle), Y: Sin(radianAngle)}
+	return Vec2{X: math32.Cos(radianAngle), Y: math32.Sin(radianAngle)}
 }
 
 // AngleBetweenTwoVectors returns the angle from referenceVector to vector,
 // in radians. Matches QVector::AngleBetweenTwoVectors in qvector.cpp.
 //
 // The C++ implementation computes:
-//   refPerp   = referenceVector.Perpendicular()
-//   dot       = vector · referenceVector
-//   perpDot   = vector · refPerp        // = vector.X*refY - vector.Y*refX
-//   totalLen  = vector.Length() + referenceVector.Length()
-//   cosA      = dot / totalLen
-//   sinA      = perpDot / totalLen
-//   aSin      = asin(clamp(sinA, -1, 1))
+//
+//	refPerp   = referenceVector.Perpendicular()
+//	dot       = vector · referenceVector
+//	perpDot   = vector · refPerp        // = vector.X*refY - vector.Y*refX
+//	totalLen  = vector.Length() + referenceVector.Length()
+//	cosA      = dot / totalLen
+//	sinA      = perpDot / totalLen
+//	aSin      = asin(clamp(sinA, -1, 1))
+//
 // AngleBetweenTwoVectors computes the signed angle from referenceVector to vector.
 // Matches QVector::AngleBetweenTwoVectors in qvector.cpp:37-69 exactly.
 //
 // C++ algorithm:
-//   totalLength = vector.Length() + referenceVector.Length()
-//   refPerp    = referenceVector.Perpendicular()
-//   dot        = vector · referenceVector
-//   perpDot    = vector · refPerp
-//   cosA = totalLength != 0 ? dot/totalLength : 0
-//   sinA = totalLength != 0 ? perpDot/totalLength : 0
-//   aSin = clamp(asin(sinA), -1, 1)
-//   return -atan2(aSin, cosA)
+//
+//	totalLength = vector.Length() + referenceVector.Length()
+//	refPerp    = referenceVector.Perpendicular()
+//	dot        = vector · referenceVector
+//	perpDot    = vector · refPerp
+//	cosA = totalLength != 0 ? dot/totalLength : 0
+//	sinA = totalLength != 0 ? perpDot/totalLength : 0
+//	aSin = clamp(asin(sinA), -1, 1)
+//	return -atan2(aSin, cosA)
 //
 // NOTE: The C++ formula divides by the SUM of lengths (not product), then
 // applies asin. This is non-standard but is the reference behavior — it must
 // be reproduced verbatim because AngleConstraint, polygon corner-angle
 // tracking, and platformer slope detection all accumulate this value.
 func AngleBetweenTwoVectors(vector, referenceVector Vec2) float32 {
-        totalLength := vector.Length() + referenceVector.Length()
-        refPerp := referenceVector.Perpendicular()
-        dot := vector.Dot(referenceVector)
-        perpDot := vector.Dot(refPerp)
+	totalLength := vector.Length() + referenceVector.Length()
+	refPerp := referenceVector.Perpendicular()
+	dot := vector.Dot(referenceVector)
+	perpDot := vector.Dot(refPerp)
 
-        cosA := float32(0.0)
-        sinA := float32(0.0)
-        if totalLength != 0 {
-                cosA = dot / totalLength
-                sinA = perpDot / totalLength
-        }
+	cosA := float32(0.0)
+	sinA := float32(0.0)
+	if totalLength != 0 {
+		cosA = dot / totalLength
+		sinA = perpDot / totalLength
+	}
 
-        var aSin float32
-        if sinA < -1.0 {
-                aSin = Asin(-1.0)
-        } else if sinA > 1.0 {
-                aSin = Asin(1.0)
-        } else {
-                aSin = Asin(sinA)
-        }
+	var aSin float32
+	if sinA < -1.0 {
+		aSin = math32.Asin(-1.0)
+	} else if sinA > 1.0 {
+		aSin = math32.Asin(1.0)
+	} else {
+		aSin = math32.Asin(sinA)
+	}
 
-        return -Atan2(aSin, cosA)
+	return -math32.Atan2(aSin, cosA)
 }
 
 // Side enumerates the four cardinal directions, used by GetVectorSide.
@@ -192,28 +197,28 @@ func AngleBetweenTwoVectors(vector, referenceVector Vec2) float32 {
 type Side int
 
 const (
-        SideUp    Side = iota // 0
-        SideRight             // 1
-        SideDown              // 2
-        SideLeft              // 3
-        SideNone              // 4
+	SideUp    Side = iota // 0
+	SideRight             // 1
+	SideDown              // 2
+	SideLeft              // 3
+	SideNone              // 4
 )
 
 // GetVectorSide classifies a vector relative to a reference "up" direction.
 // maxAngleDefiningSide defaults to π/4 (45°) in callers.
 // Matches QVector::GetVectorSide in qvector.cpp:71-86.
 func GetVectorSide(vector, referenceUpVector Vec2, maxAngleDefiningSide float32) Side {
-        ang := AngleBetweenTwoVectors(vector, referenceUpVector)
-        if Abs(ang) < maxAngleDefiningSide {
-                return SideUp
-        } else if ang > Pi/2-maxAngleDefiningSide && ang < Pi/2+maxAngleDefiningSide {
-                return SideRight
-        } else if ang < -(Pi/2-maxAngleDefiningSide) && ang > -(Pi/2+maxAngleDefiningSide) {
-                return SideLeft
-        } else if Abs(ang) > Pi-maxAngleDefiningSide {
-                return SideDown
-        }
-        return SideNone
+	ang := AngleBetweenTwoVectors(vector, referenceUpVector)
+	if math32.Abs(ang) < maxAngleDefiningSide {
+		return SideUp
+	} else if ang > math32.Pi/2-maxAngleDefiningSide && ang < math32.Pi/2+maxAngleDefiningSide {
+		return SideRight
+	} else if ang < -(math32.Pi/2-maxAngleDefiningSide) && ang > -(math32.Pi/2+maxAngleDefiningSide) {
+		return SideLeft
+	} else if math32.Abs(ang) > math32.Pi-maxAngleDefiningSide {
+		return SideDown
+	}
+	return SideNone
 }
 
 // GetBisectorUnitVector returns the unit bisector vector of the angle
@@ -221,45 +226,46 @@ func GetVectorSide(vector, referenceUpVector Vec2, maxAngleDefiningSide float32)
 // Matches QVector::GeteBisectorUnitVector in qvector.cpp:88-119.
 //
 // The C++ implementation:
-//   fromPrev        = pointB - pointA
-//   toNext          = pointC - pointB
-//   prevToNext      = pointC - pointA
-//   prevToNextPerp  = prevToNext.Perpendicular()
-//   bisectorUnit    = prevToNextPerp.Normalized()
-//   if fromPrev · prevToNextPerp < 0:
-//       if checkPointsAreCCW:
-//           toCenterPos = prevToNext*0.5 - fromPrev
-//           if toCenterPos · bisectorUnit < 0: bisectorUnit = -bisectorUnit
-//   else:
-//       if checkPointsAreCCW:
-//           toCenterPos = prevToNext*0.5 - fromPrev
-//           if toCenterPos · bisectorUnit > 0: bisectorUnit = -bisectorUnit
-//       else:
-//           bisectorUnit = bisectorUnit  (no-op)
-//   return -bisectorUnit
+//
+//	fromPrev        = pointB - pointA
+//	toNext          = pointC - pointB
+//	prevToNext      = pointC - pointA
+//	prevToNextPerp  = prevToNext.Perpendicular()
+//	bisectorUnit    = prevToNextPerp.Normalized()
+//	if fromPrev · prevToNextPerp < 0:
+//	    if checkPointsAreCCW:
+//	        toCenterPos = prevToNext*0.5 - fromPrev
+//	        if toCenterPos · bisectorUnit < 0: bisectorUnit = -bisectorUnit
+//	else:
+//	    if checkPointsAreCCW:
+//	        toCenterPos = prevToNext*0.5 - fromPrev
+//	        if toCenterPos · bisectorUnit > 0: bisectorUnit = -bisectorUnit
+//	    else:
+//	        bisectorUnit = bisectorUnit  (no-op)
+//	return -bisectorUnit
 func GetBisectorUnitVector(pointA, pointB, pointC Vec2, checkPointsAreCCW bool) Vec2 {
-        fromPrev := pointB.Sub(pointA)
-        prevToNext := pointC.Sub(pointA)
-        prevToNextPerp := prevToNext.Perpendicular()
-        bisectorUnit := prevToNextPerp.Normalized()
+	fromPrev := pointB.Sub(pointA)
+	prevToNext := pointC.Sub(pointA)
+	prevToNextPerp := prevToNext.Perpendicular()
+	bisectorUnit := prevToNextPerp.Normalized()
 
-        if fromPrev.Dot(prevToNextPerp) < 0 {
-                if checkPointsAreCCW {
-                        toCenterPos := prevToNext.Mul(0.5).Sub(fromPrev)
-                        if toCenterPos.Dot(bisectorUnit) < 0 {
-                                bisectorUnit = bisectorUnit.Neg()
-                        }
-                }
-        } else {
-                if checkPointsAreCCW {
-                        toCenterPos := prevToNext.Mul(0.5).Sub(fromPrev)
-                        if toCenterPos.Dot(bisectorUnit) > 0 {
-                                bisectorUnit = bisectorUnit.Neg()
-                        }
-                } else {
-                        // no-op: bisectorUnit stays as-is
-                }
-        }
+	if fromPrev.Dot(prevToNextPerp) < 0 {
+		if checkPointsAreCCW {
+			toCenterPos := prevToNext.Mul(0.5).Sub(fromPrev)
+			if toCenterPos.Dot(bisectorUnit) < 0 {
+				bisectorUnit = bisectorUnit.Neg()
+			}
+		}
+	} else {
+		if checkPointsAreCCW {
+			toCenterPos := prevToNext.Mul(0.5).Sub(fromPrev)
+			if toCenterPos.Dot(bisectorUnit) > 0 {
+				bisectorUnit = bisectorUnit.Neg()
+			}
+		} else {
+			// no-op: bisectorUnit stays as-is
+		}
+	}
 
-        return bisectorUnit.Neg()
+	return bisectorUnit.Neg()
 }

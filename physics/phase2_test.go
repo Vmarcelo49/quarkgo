@@ -1,6 +1,10 @@
 package physics
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/chewxy/math32"
+)
 
 // TestSoftBodyFallsUnderGravity verifies that a soft body (polygon mesh)
 // falls under gravity and its particles move correctly.
@@ -185,7 +189,7 @@ func TestSoftBodyAreaPreserving(t *testing.T) {
 	finalArea := mesh.PolygonArea()
 
 	// Area should be close to initial (within 20%)
-	if Abs(finalArea-initialArea) > Abs(initialArea)*0.2 {
+	if math32.Abs(finalArea-initialArea) > math32.Abs(initialArea)*0.2 {
 		t.Errorf("area not preserved: initial=%f, final=%f", initialArea, finalArea)
 	}
 	t.Logf("area: initial=%f, final=%f", initialArea, finalArea)
@@ -225,7 +229,7 @@ func TestSpringConvergence(t *testing.T) {
 	finalDist := (mesh.ParticleAt(1).GlobalPosition().Sub(mesh.ParticleAt(0).GlobalPosition())).Length()
 
 	// Should be closer to rest length than the initial 20-unit separation
-	if Abs(finalDist-restLength) > 5 {
+	if math32.Abs(finalDist-restLength) > 5 {
 		t.Errorf("spring didn't converge: restLength=%f, finalDist=%f", restLength, finalDist)
 	}
 	t.Logf("spring: restLength=%f, finalDist=%f", restLength, finalDist)

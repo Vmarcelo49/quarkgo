@@ -16,6 +16,7 @@ import (
 	"sort"
 
 	"github.com/Vmarcelo49/quarkgo/physics"
+	"github.com/chewxy/math32"
 )
 
 // SpatialHashing is a uniform-grid broadphase. Implements physics.BroadPhase.
@@ -66,10 +67,10 @@ func (s *SpatialHashing) Insert(b *physics.Body) {
 	aabb := b.AABB()
 
 	cell := cellAABB{
-		minX: int(physics.Floor(aabb.Min.X * s.cellSizeFactor)),
-		minY: int(physics.Floor(aabb.Min.Y * s.cellSizeFactor)),
-		maxX: int(physics.Floor(aabb.Max.X * s.cellSizeFactor)),
-		maxY: int(physics.Floor(aabb.Max.Y * s.cellSizeFactor)),
+		minX: int(math32.Floor(aabb.Min.X * s.cellSizeFactor)),
+		minY: int(math32.Floor(aabb.Min.Y * s.cellSizeFactor)),
+		maxX: int(math32.Floor(aabb.Max.X * s.cellSizeFactor)),
+		maxY: int(math32.Floor(aabb.Max.Y * s.cellSizeFactor)),
 	}
 
 	// Check if the body's cell range hasn't changed

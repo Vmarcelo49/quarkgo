@@ -1,17 +1,19 @@
 package physics
 
+import "github.com/chewxy/math32"
+
 // BodyType enumerates the body kinds. Matches QBody::BodyTypes in qbody.h:56-60.
 type BodyType int
 
 const (
-        // BodyTypeRigid is a non-deformable solid body simulated with Verlet integration.
-        BodyTypeRigid BodyType = iota
+	// BodyTypeRigid is a non-deformable solid body simulated with Verlet integration.
+	BodyTypeRigid BodyType = iota
 
-        // BodyTypeArea is a sensor/trigger body that reports collisions but doesn't respond.
-        BodyTypeArea
+	// BodyTypeArea is a sensor/trigger body that reports collisions but doesn't respond.
+	BodyTypeArea
 
-        // BodyTypeSoft is a deformable body using mass-spring model with PBD.
-        BodyTypeSoft
+	// BodyTypeSoft is a deformable body using mass-spring model with PBD.
+	BodyTypeSoft
 )
 
 // BodyMode determines whether a body reacts to forces and collisions.
@@ -19,11 +21,11 @@ const (
 type BodyMode int
 
 const (
-        // BodyModeDynamic reacts to forces, constraints, and collisions.
-        BodyModeDynamic BodyMode = iota
+	// BodyModeDynamic reacts to forces, constraints, and collisions.
+	BodyModeDynamic BodyMode = iota
 
-        // BodyModeStatic does not react; it provides collision surfaces for dynamic bodies.
-        BodyModeStatic
+	// BodyModeStatic does not react; it provides collision surfaces for dynamic bodies.
+	BodyModeStatic
 )
 
 // Body is the base type for all physics bodies. Matches QBody in
@@ -40,102 +42,102 @@ const (
 //   - The AABB is recomputed from particle positions
 //   - Sleeping bodies skip integration but still collide
 type Body struct {
-        world    *World
-        bodyType BodyType
+	world    *World
+	bodyType BodyType
 
-        // Transform
-        position     Vec2
-        prevPosition Vec2
-        rotation     float32
-        prevRotation float32
+	// Transform
+	position     Vec2
+	prevPosition Vec2
+	rotation     float32
+	prevRotation float32
 
-        // Bounding box
-        aabb AABB
+	// Bounding box
+	aabb AABB
 
-        // State
-        mode    BodyMode
-        enabled bool
+	// State
+	mode    BodyMode
+	enabled bool
 
-        // Physics properties
-        friction        float32
-        staticFriction  float32
-        airFriction     float32
-        mass            float32
-        restitution     float32
-        velocityLimit   float32
+	// Physics properties
+	friction       float32
+	staticFriction float32
+	airFriction    float32
+	mass           float32
+	restitution    float32
+	velocityLimit  float32
 
-        // Collision filtering
-        layersBit           int
-        collidableLayersBit int
+	// Collision filtering
+	layersBit           int
+	collidableLayersBit int
 
-        // Kinematic
-        isKinematic           bool
-        allowKinematicCollisions bool
+	// Kinematic
+	isKinematic              bool
+	allowKinematicCollisions bool
 
-        // Sleeping
-        isSleeping bool
-        sleepTick  int
-        canSleep   bool
-        // fixedVelocityTick / fixedAngularTick accumulate consecutive stationary
-        // steps. When both reach 120, the island goes to sleep. Reset to 0 on any
-        // motion. Matches qbody.h:124-125 + qworld.cpp:388-419.
-        fixedVelocityTick int
-        fixedAngularTick  int
+	// Sleeping
+	isSleeping bool
+	sleepTick  int
+	canSleep   bool
+	// fixedVelocityTick / fixedAngularTick accumulate consecutive stationary
+	// steps. When both reach 120, the island goes to sleep. Reset to 0 on any
+	// motion. Matches qbody.h:124-125 + qworld.cpp:388-419.
+	fixedVelocityTick int
+	fixedAngularTick  int
 
-        // Time scale
-        enableBodySpecificTimeScale bool
-        bodySpecificTimeScale       float32
+	// Time scale
+	enableBodySpecificTimeScale bool
+	bodySpecificTimeScale       float32
 
-        // Velocity integration toggle
-        enableIntegratedVelocities bool
+	// Velocity integration toggle
+	enableIntegratedVelocities bool
 
-        // Custom gravity
-        enableCustomGravity bool
-        customGravity       Vec2
+	// Custom gravity
+	enableCustomGravity bool
+	customGravity       Vec2
 
-        // Cached-derived
-        inertiaNeedsUpdate     bool
-        circumferenceNeedsUpdate bool
-        // inertiaCache stores the clamped inertia (>= 500.0) so the warm path of
-        // Inertia() returns the same value the cold path computed. Without this
-        // cache, callers like ApplyForceAt/ApplyImpulse would recompute the
-        // unclamped formula and produce ~2.5x larger torque for small bodies.
-        // Matches qbody.h:44 `float inertia=0.0f` + qbody.h:261-268 GetInertia.
-        inertiaCache float32
-        // circumferenceCache stores the summed perimeter for the warm path.
-        circumferenceCache float32
+	// Cached-derived
+	inertiaNeedsUpdate       bool
+	circumferenceNeedsUpdate bool
+	// inertiaCache stores the clamped inertia (>= 500.0) so the warm path of
+	// Inertia() returns the same value the cold path computed. Without this
+	// cache, callers like ApplyForceAt/ApplyImpulse would recompute the
+	// unclamped formula and produce ~2.5x larger torque for small bodies.
+	// Matches qbody.h:44 `float inertia=0.0f` + qbody.h:261-268 GetInertia.
+	inertiaCache float32
+	// circumferenceCache stores the summed perimeter for the warm path.
+	circumferenceCache float32
 
-        // Meshes
-        meshes []*Mesh
+	// Meshes
+	meshes []*Mesh
 
-        // Event listeners (function fields, replace std::function)
-        OnPreStep func(*Body)
-        OnStep    func(*Body)
-        OnCollision func(*Body, CollisionInfo) bool
+	// Event listeners (function fields, replace std::function)
+	OnPreStep   func(*Body)
+	OnStep      func(*Body)
+	OnCollision func(*Body, CollisionInfo) bool
 
-        // Set by QAreaBody to exempt this body from gravity
-        ignoreGravity bool
+	// Set by QAreaBody to exempt this body from gravity
+	ignoreGravity bool
 }
 
 // NewBody constructs a Body with default values matching QBody::QBody.
 func NewBody() *Body {
-        return &Body{
-                bodyType:                  BodyTypeRigid,
-                mode:                      BodyModeDynamic,
-                enabled:                   true,
-                friction:                  0.2,
-                staticFriction:            0.5,
-                airFriction:               0.01,
-                mass:                      1.0,
-                layersBit:                 1,
-                collidableLayersBit:       1,
-                canSleep:                  true,
-                sleepTick:                 120,
-                enableIntegratedVelocities: true,
-                bodySpecificTimeScale:     1.0,
-                inertiaNeedsUpdate:        true,
-                circumferenceNeedsUpdate:  true,
-        }
+	return &Body{
+		bodyType:                   BodyTypeRigid,
+		mode:                       BodyModeDynamic,
+		enabled:                    true,
+		friction:                   0.2,
+		staticFriction:             0.5,
+		airFriction:                0.01,
+		mass:                       1.0,
+		layersBit:                  1,
+		collidableLayersBit:        1,
+		canSleep:                   true,
+		sleepTick:                  120,
+		enableIntegratedVelocities: true,
+		bodySpecificTimeScale:      1.0,
+		inertiaNeedsUpdate:         true,
+		circumferenceNeedsUpdate:   true,
+	}
 }
 
 // --- Getters ---
@@ -156,7 +158,7 @@ func (b *Body) PreviousPosition() Vec2 { return b.prevPosition }
 func (b *Body) Rotation() float32 { return b.rotation }
 
 // RotationDegree returns the body's rotation in degrees.
-func (b *Body) RotationDegree() float32 { return b.rotation / (Pi / 180) }
+func (b *Body) RotationDegree() float32 { return b.rotation / (math32.Pi / 180) }
 
 // PreviousRotation returns the body's previous rotation.
 func (b *Body) PreviousRotation() float32 { return b.prevRotation }
@@ -232,11 +234,11 @@ func (b *Body) MeshAt(i int) *Mesh { return b.meshes[i] }
 
 // TotalInitialArea returns the sum of all meshes' initial areas.
 func (b *Body) TotalInitialArea() float32 {
-        var res float32
-        for _, m := range b.meshes {
-                res += m.InitialArea()
-        }
-        return res
+	var res float32
+	for _, m := range b.meshes {
+		res += m.InitialArea()
+	}
+	return res
 }
 
 // Inertia returns the body's rotational inertia. Computed lazily.
@@ -247,31 +249,31 @@ func (b *Body) TotalInitialArea() float32 {
 // (e.g. 10×10 with mass 1, area*2*mass ≈ 200 < 500) would compute ~2.5x
 // larger torque on every ApplyForce/ApplyImpulse call after the first.
 func (b *Body) Inertia() float32 {
-        if b.inertiaNeedsUpdate {
-                inertia := b.TotalInitialArea() * 2.0 * b.mass
-                if inertia < 500.0 {
-                        inertia = 500.0
-                }
-                b.inertiaCache = inertia
-                b.inertiaNeedsUpdate = false
-                return inertia
-        }
-        return b.inertiaCache
+	if b.inertiaNeedsUpdate {
+		inertia := b.TotalInitialArea() * 2.0 * b.mass
+		if inertia < 500.0 {
+			inertia = 500.0
+		}
+		b.inertiaCache = inertia
+		b.inertiaNeedsUpdate = false
+		return inertia
+	}
+	return b.inertiaCache
 }
 
 // Circumference returns the total perimeter of all meshes' polygons.
 // Matches qbody.h:331-341 — caches the computed perimeter for the warm path.
 func (b *Body) Circumference() float32 {
-        if b.circumferenceNeedsUpdate {
-                var res float32
-                for _, m := range b.meshes {
-                        res += m.Circumference()
-                }
-                b.circumferenceCache = res
-                b.circumferenceNeedsUpdate = false
-                return res
-        }
-        return b.circumferenceCache
+	if b.circumferenceNeedsUpdate {
+		var res float32
+		for _, m := range b.meshes {
+			res += m.Circumference()
+		}
+		b.circumferenceCache = res
+		b.circumferenceNeedsUpdate = false
+		return res
+	}
+	return b.circumferenceCache
 }
 
 // --- Setters (fluent, return *Body) ---
@@ -280,71 +282,71 @@ func (b *Body) Circumference() float32 {
 // is true (the default), prevPosition is also set, zeroing the implicit velocity.
 // Matches QBody::SetPosition in qbody.h:387-397.
 func (b *Body) SetPosition(v Vec2, withPreviousPosition ...bool) *Body {
-        wpp := true
-        if len(withPreviousPosition) > 0 {
-                wpp = withPreviousPosition[0]
-        }
-        b.position = v
-        if wpp {
-                b.prevPosition = v
-        }
-        b.WakeUp()
-        b.UpdateMeshTransforms()
-        b.UpdateAABB()
-        return b
+	wpp := true
+	if len(withPreviousPosition) > 0 {
+		wpp = withPreviousPosition[0]
+	}
+	b.position = v
+	if wpp {
+		b.prevPosition = v
+	}
+	b.WakeUp()
+	b.UpdateMeshTransforms()
+	b.UpdateAABB()
+	return b
 }
 
 // AddPosition adds a vector to the body's position.
 func (b *Body) AddPosition(v Vec2, withPreviousPosition ...bool) *Body {
-        return b.SetPosition(b.Position().Add(v), withPreviousPosition...)
+	return b.SetPosition(b.Position().Add(v), withPreviousPosition...)
 }
 
 // SetPreviousPosition sets the body's previous position (Verlet velocity source).
 func (b *Body) SetPreviousPosition(v Vec2) *Body {
-        b.prevPosition = v
-        return b
+	b.prevPosition = v
+	return b
 }
 
 // AddPreviousPosition adds a vector to the body's previous position.
 func (b *Body) AddPreviousPosition(v Vec2) *Body {
-        return b.SetPreviousPosition(b.PreviousPosition().Add(v))
+	return b.SetPreviousPosition(b.PreviousPosition().Add(v))
 }
 
 // SetRotation sets the body's rotation in radians.
 // Matches QBody::SetRotation in qbody.h:432-438.
 func (b *Body) SetRotation(angleRadian float32, withPreviousRotation ...bool) *Body {
-        wpr := true
-        if len(withPreviousRotation) > 0 {
-                wpr = withPreviousRotation[0]
-        }
-        b.rotation = angleRadian
-        if wpr {
-                b.prevRotation = angleRadian
-        }
-        b.WakeUp()
-        b.UpdateMeshTransforms()
-        return b
+	wpr := true
+	if len(withPreviousRotation) > 0 {
+		wpr = withPreviousRotation[0]
+	}
+	b.rotation = angleRadian
+	if wpr {
+		b.prevRotation = angleRadian
+	}
+	b.WakeUp()
+	b.UpdateMeshTransforms()
+	return b
 }
 
 // SetRotationDegree sets the body's rotation in degrees.
 func (b *Body) SetRotationDegree(degree float32, withPreviousRotation ...bool) *Body {
-        return b.SetRotation(degree*(Pi/180.0), withPreviousRotation...)
+	return b.SetRotation(degree*(math32.Pi/180.0), withPreviousRotation...)
 }
 
 // AddRotation adds to the body's rotation in radians.
 func (b *Body) AddRotation(angleRadian float32, withPreviousRotation ...bool) *Body {
-        return b.SetRotation(b.Rotation()+angleRadian, withPreviousRotation...)
+	return b.SetRotation(b.Rotation()+angleRadian, withPreviousRotation...)
 }
 
 // SetPreviousRotation sets the body's previous rotation.
 func (b *Body) SetPreviousRotation(angleRadian float32) *Body {
-        b.prevRotation = angleRadian
-        return b
+	b.prevRotation = angleRadian
+	return b
 }
 
 // AddPreviousRotation adds to the body's previous rotation.
 func (b *Body) AddPreviousRotation(angleRadian float32) *Body {
-        return b.SetPreviousRotation(b.PreviousRotation() + angleRadian)
+	return b.SetPreviousRotation(b.PreviousRotation() + angleRadian)
 }
 
 // SetLayersBit sets the bitmask of layers this body is on.
@@ -370,9 +372,9 @@ func (b *Body) SetAirFriction(v float32) *Body { b.airFriction = v; return b }
 
 // SetMass sets the body's mass.
 func (b *Body) SetMass(v float32) *Body {
-        b.mass = v
-        b.inertiaNeedsUpdate = true
-        return b
+	b.mass = v
+	b.inertiaNeedsUpdate = true
+	return b
 }
 
 // SetRestitution sets the body's restitution (bounciness).
@@ -386,15 +388,15 @@ func (b *Body) SetVelocityLimit(v float32) *Body { b.velocityLimit = v; return b
 
 // SetIntegratedVelocitiesEnabled controls whether Verlet integration runs.
 func (b *Body) SetIntegratedVelocitiesEnabled(v bool) *Body {
-        b.enableIntegratedVelocities = v
-        return b
+	b.enableIntegratedVelocities = v
+	return b
 }
 
 // SetBodySpecificTimeScaleEnabled toggles whether the body uses its own
 // time scale instead of the world's. Matches qbody.h:570-573.
 func (b *Body) SetBodySpecificTimeScaleEnabled(v bool) *Body {
-        b.enableBodySpecificTimeScale = v
-        return b
+	b.enableBodySpecificTimeScale = v
+	return b
 }
 
 // SetBodySpecificTimeScale sets a per-body time scale. When the value changes
@@ -411,52 +413,52 @@ func (b *Body) SetBodySpecificTimeScaleEnabled(v bool) *Body {
 // For SOFT bodies: rescale each particle's (globalPosition - prevGlobalPosition).
 // For AREA bodies: no rescale (they don't integrate).
 func (b *Body) SetBodySpecificTimeScale(value float32) *Body {
-        if b.bodySpecificTimeScale == value {
-                return b
-        }
-        if b.enableBodySpecificTimeScale {
-                var velocityTimeScaleFactor float32 = 0.0
-                if b.bodySpecificTimeScale != 0 {
-                        if value < b.bodySpecificTimeScale {
-                                velocityTimeScaleFactor = (1.0 / b.bodySpecificTimeScale) * value
-                        } else {
-                                velocityTimeScaleFactor = 1.0
-                        }
-                }
+	if b.bodySpecificTimeScale == value {
+		return b
+	}
+	if b.enableBodySpecificTimeScale {
+		var velocityTimeScaleFactor float32 = 0.0
+		if b.bodySpecificTimeScale != 0 {
+			if value < b.bodySpecificTimeScale {
+				velocityTimeScaleFactor = (1.0 / b.bodySpecificTimeScale) * value
+			} else {
+				velocityTimeScaleFactor = 1.0
+			}
+		}
 
-                if b.bodyType == BodyTypeRigid {
-                        vel := b.position.Sub(b.prevPosition)
-                        vel = vel.Mul(velocityTimeScaleFactor)
-                        b.prevPosition = b.position.Sub(vel)
-                        rotVel := b.rotation - b.prevRotation
-                        rotVel *= velocityTimeScaleFactor
-                        b.prevRotation = b.rotation - rotVel
-                } else if b.bodyType != BodyTypeArea {
-                        // Soft body — rescale per-particle velocities.
-                        for _, mesh := range b.meshes {
-                                for _, p := range mesh.particles {
-                                        vel := p.GlobalPosition().Sub(p.PreviousGlobalPosition())
-                                        vel = vel.Mul(velocityTimeScaleFactor)
-                                        p.SetPreviousGlobalPosition(p.GlobalPosition().Sub(vel))
-                                }
-                        }
-                }
-        }
-        b.WakeUp()
-        b.bodySpecificTimeScale = value
-        return b
+		if b.bodyType == BodyTypeRigid {
+			vel := b.position.Sub(b.prevPosition)
+			vel = vel.Mul(velocityTimeScaleFactor)
+			b.prevPosition = b.position.Sub(vel)
+			rotVel := b.rotation - b.prevRotation
+			rotVel *= velocityTimeScaleFactor
+			b.prevRotation = b.rotation - rotVel
+		} else if b.bodyType != BodyTypeArea {
+			// Soft body — rescale per-particle velocities.
+			for _, mesh := range b.meshes {
+				for _, p := range mesh.particles {
+					vel := p.GlobalPosition().Sub(p.PreviousGlobalPosition())
+					vel = vel.Mul(velocityTimeScaleFactor)
+					p.SetPreviousGlobalPosition(p.GlobalPosition().Sub(vel))
+				}
+			}
+		}
+	}
+	b.WakeUp()
+	b.bodySpecificTimeScale = value
+	return b
 }
 
 // SetCustomGravityEnabled controls whether a per-body gravity override is active.
 func (b *Body) SetCustomGravityEnabled(v bool) *Body {
-        b.enableCustomGravity = v
-        return b
+	b.enableCustomGravity = v
+	return b
 }
 
 // SetCustomGravity sets the per-body gravity vector.
 func (b *Body) SetCustomGravity(v Vec2) *Body {
-        b.customGravity = v
-        return b
+	b.customGravity = v
+	return b
 }
 
 // SetKinematic controls whether the body is kinematic. (Defined on RigidBody
@@ -465,37 +467,37 @@ func (b *Body) SetKinematic(v bool) *Body { b.isKinematic = v; return b }
 
 // SetAllowKinematicCollisions controls kinematic-kinematic collision response.
 func (b *Body) SetAllowKinematicCollisions(v bool) *Body {
-        b.allowKinematicCollisions = v
-        return b
+	b.allowKinematicCollisions = v
+	return b
 }
 
 // --- Mesh operations ---
 
 // AddMesh attaches a mesh to the body. Matches QBody::AddMesh in qbody.cpp:154-162.
 func (b *Body) AddMesh(m *Mesh) *Body {
-        b.meshes = append(b.meshes, m)
-        m.ownerBody = b
-        b.UpdateMeshTransforms()
-        b.inertiaNeedsUpdate = true
-        b.circumferenceNeedsUpdate = true
-        m.UpdateCollisionBehavior()
-        return b
+	b.meshes = append(b.meshes, m)
+	m.ownerBody = b
+	b.UpdateMeshTransforms()
+	b.inertiaNeedsUpdate = true
+	b.circumferenceNeedsUpdate = true
+	m.UpdateCollisionBehavior()
+	return b
 }
 
 // RemoveMeshAt removes the mesh at the given index.
 func (b *Body) RemoveMeshAt(i int) *Body {
-        b.meshes = append(b.meshes[:i], b.meshes[i+1:]...)
-        b.inertiaNeedsUpdate = true
-        b.circumferenceNeedsUpdate = true
-        return b
+	b.meshes = append(b.meshes[:i], b.meshes[i+1:]...)
+	b.inertiaNeedsUpdate = true
+	b.circumferenceNeedsUpdate = true
+	return b
 }
 
 // --- Sleeping ---
 
 // WakeUp un-sleeps the body. Matches QBody::WakeUp in qbody.h:679-682.
 func (b *Body) WakeUp() *Body {
-        b.isSleeping = false
-        return b
+	b.isSleeping = false
+	return b
 }
 
 // --- Internal methods (called by World, Manifold, etc.) ---
@@ -503,35 +505,35 @@ func (b *Body) WakeUp() *Body {
 // UpdateAABB recomputes the body's AABB from all particle positions.
 // Matches QBody::UpdateAABB in qbody.cpp:195-225.
 func (b *Body) UpdateAABB() {
-        minX := MaxWorldSize
-        minY := MaxWorldSize
-        maxX := -MaxWorldSize
-        maxY := -MaxWorldSize
-        for _, mesh := range b.meshes {
-                for _, p := range mesh.particles {
-                        r := float32(0)
-                        if p.Radius() > 0.5 {
-                                r = p.Radius()
-                        }
-                        gp := p.GlobalPosition()
-                        if gp.X-r < minX {
-                                minX = gp.X - r
-                        }
-                        if gp.Y-r < minY {
-                                minY = gp.Y - r
-                        }
-                        if gp.X+r > maxX {
-                                maxX = gp.X + r
-                        }
-                        if gp.Y+r > maxY {
-                                maxY = gp.Y + r
-                        }
-                }
-        }
-        b.aabb = AABB{
-                Min: Vec2{X: minX, Y: minY},
-                Max: Vec2{X: maxX, Y: maxY},
-        }
+	minX := MaxWorldSize
+	minY := MaxWorldSize
+	maxX := -MaxWorldSize
+	maxY := -MaxWorldSize
+	for _, mesh := range b.meshes {
+		for _, p := range mesh.particles {
+			r := float32(0)
+			if p.Radius() > 0.5 {
+				r = p.Radius()
+			}
+			gp := p.GlobalPosition()
+			if gp.X-r < minX {
+				minX = gp.X - r
+			}
+			if gp.Y-r < minY {
+				minY = gp.Y - r
+			}
+			if gp.X+r > maxX {
+				maxX = gp.X + r
+			}
+			if gp.Y+r > maxY {
+				maxY = gp.Y + r
+			}
+		}
+	}
+	b.aabb = AABB{
+		Min: Vec2{X: minX, Y: minY},
+		Max: Vec2{X: maxX, Y: maxY},
+	}
 }
 
 // UpdateMeshTransforms applies the body's position and rotation to all
@@ -543,36 +545,36 @@ func (b *Body) UpdateAABB() {
 //
 // This is the Verlet velocity mechanism for particles.
 func (b *Body) UpdateMeshTransforms() {
-        for _, mesh := range b.meshes {
-                mesh.globalRotation = b.rotation + mesh.rotation
-                rotVecUnit := AngleToUnitVector(mesh.globalRotation)
-                mesh.globalPosition = b.position.Add(mesh.position.Rotated(b.rotation))
-                for _, p := range mesh.particles {
-                        originVec := p.Position()
-                        nx := originVec.X*rotVecUnit.X - originVec.Y*rotVecUnit.Y
-                        ny := originVec.Y*rotVecUnit.X + originVec.X*rotVecUnit.Y
-                        newPos := mesh.globalPosition.Add(Vec2{X: nx, Y: ny})
-                        if b.bodyType == BodyTypeRigid {
-                                p.SetPreviousGlobalPosition(p.GlobalPosition())
-                        } else {
-                                p.SetPreviousGlobalPosition(newPos)
-                        }
-                        p.SetGlobalPosition(newPos)
-                }
-        }
+	for _, mesh := range b.meshes {
+		mesh.globalRotation = b.rotation + mesh.rotation
+		rotVecUnit := AngleToUnitVector(mesh.globalRotation)
+		mesh.globalPosition = b.position.Add(mesh.position.Rotated(b.rotation))
+		for _, p := range mesh.particles {
+			originVec := p.Position()
+			nx := originVec.X*rotVecUnit.X - originVec.Y*rotVecUnit.Y
+			ny := originVec.Y*rotVecUnit.X + originVec.X*rotVecUnit.Y
+			newPos := mesh.globalPosition.Add(Vec2{X: nx, Y: ny})
+			if b.bodyType == BodyTypeRigid {
+				p.SetPreviousGlobalPosition(p.GlobalPosition())
+			} else {
+				p.SetPreviousGlobalPosition(newPos)
+			}
+			p.SetGlobalPosition(newPos)
+		}
+	}
 }
 
 // Update is the per-step integration hook. The base implementation just
 // resets lazy collisions; RigidBody and SoftBody override.
 // Matches QBody::Update in qbody.cpp:253-263.
 func (b *Body) Update() {
-        for _, mesh := range b.meshes {
-                for _, p := range mesh.particles {
-                        if p.IsLazy() {
-                                p.ResetOneTimeCollisions()
-                        }
-                }
-        }
+	for _, mesh := range b.meshes {
+		for _, p := range mesh.particles {
+			if p.IsLazy() {
+				p.ResetOneTimeCollisions()
+			}
+		}
+	}
 }
 
 // PostUpdate is called after all bodies have completed their Update step.
@@ -582,16 +584,16 @@ func (b *Body) PostUpdate() {}
 // CanGiveCollisionResponseTo reports whether this body should receive
 // collision responses from otherBody. Matches QBody::CanGiveCollisionResponseTo.
 func (b *Body) CanGiveCollisionResponseTo(other *Body) bool {
-        if other.mode == BodyModeStatic {
-                return false
-        }
-        if other.isKinematic && b.isKinematic && !other.allowKinematicCollisions {
-                return false
-        }
-        if b.mode != BodyModeStatic && other.isKinematic && !b.isKinematic {
-                return false
-        }
-        return true
+	if other.mode == BodyModeStatic {
+		return false
+	}
+	if other.isKinematic && b.isKinematic && !other.allowKinematicCollisions {
+		return false
+	}
+	if b.mode != BodyModeStatic && other.isKinematic && !b.isKinematic {
+		return false
+	}
+	return true
 }
 
 // ApplyForce applies an immediate force to the body. The base implementation
@@ -603,40 +605,40 @@ func (b *Body) ApplyForce(force Vec2) *Body { return b }
 // CanCollide reports whether two bodies can collide based on their state
 // and layer bits. Matches QBody::CanCollide in qbody.cpp:108-132.
 func CanCollide(bodyA, bodyB *Body, checkBodiesAreEnabled bool) bool {
-        if bodyA.world != bodyB.world {
-                return false
-        }
-        if checkBodiesAreEnabled {
-                if !bodyA.enabled || !bodyB.enabled {
-                        return false
-                }
-        }
-        // Static and sleeping bodies don't collide with each other
-        if (bodyA.isSleeping || bodyA.mode == BodyModeStatic) &&
-                (bodyB.isSleeping || bodyB.mode == BodyModeStatic) {
-                return false
-        }
-        // Layer bits check
-        if (bodyA.layersBit&bodyB.collidableLayersBit) == 0 &&
-                (bodyB.layersBit&bodyA.collidableLayersBit) == 0 {
-                return false
-        }
-        // Collision exceptions
-        if bodyA.world != nil && bodyA.world.CheckCollisionException(bodyA, bodyB) {
-                return false
-        }
-        return true
+	if bodyA.world != bodyB.world {
+		return false
+	}
+	if checkBodiesAreEnabled {
+		if !bodyA.enabled || !bodyB.enabled {
+			return false
+		}
+	}
+	// Static and sleeping bodies don't collide with each other
+	if (bodyA.isSleeping || bodyA.mode == BodyModeStatic) &&
+		(bodyB.isSleeping || bodyB.mode == BodyModeStatic) {
+		return false
+	}
+	// Layer bits check
+	if (bodyA.layersBit&bodyB.collidableLayersBit) == 0 &&
+		(bodyB.layersBit&bodyA.collidableLayersBit) == 0 {
+		return false
+	}
+	// Collision exceptions
+	if bodyA.world != nil && bodyA.world.CheckCollisionException(bodyA, bodyB) {
+		return false
+	}
+	return true
 }
 
 // OverlapWithCollidableLayersBit reports whether this body can collide
 // with bodies on the given layers bitmask.
 func (b *Body) OverlapWithCollidableLayersBit(layersBit int) bool {
-        return (layersBit & b.collidableLayersBit) != 0
+	return (layersBit & b.collidableLayersBit) != 0
 }
 
 // OverlapWithLayersBit reports whether this body is on any of the given layers.
 func (b *Body) OverlapWithLayersBit(layersBit int) bool {
-        return (layersBit & b.layersBit) != 0
+	return (layersBit & b.layersBit) != 0
 }
 
 // ComputeFriction calculates the friction force for a collision.
@@ -646,23 +648,23 @@ func (b *Body) OverlapWithLayersBit(layersBit int) bool {
 // contact plane; if |jt| < penetration * staticFriction, use static
 // friction, otherwise use dynamic friction.
 func ComputeFriction(bodyA, bodyB *Body, normal Vec2, penetration float32, relativeVelocity Vec2) Vec2 {
-        // tangent = relativeVelocity - (relativeVelocity · normal) * normal
-        tangent := relativeVelocity.Sub(normal.Mul(relativeVelocity.Dot(normal)))
-        tangent = tangent.Normalized()
+	// tangent = relativeVelocity - (relativeVelocity · normal) * normal
+	tangent := relativeVelocity.Sub(normal.Mul(relativeVelocity.Dot(normal)))
+	tangent = tangent.Normalized()
 
-        jt := relativeVelocity.Dot(tangent.Neg())
+	jt := relativeVelocity.Dot(tangent.Neg())
 
-        dynamicFriction := bodyA.friction
-        if bodyB.friction < dynamicFriction {
-                dynamicFriction = bodyB.friction
-        }
-        sFriction := Sqrt(bodyA.staticFriction * bodyB.staticFriction)
+	dynamicFriction := bodyA.friction
+	if bodyB.friction < dynamicFriction {
+		dynamicFriction = bodyB.friction
+	}
+	sFriction := math32.Sqrt(bodyA.staticFriction * bodyB.staticFriction)
 
-        var frictionForce Vec2
-        if Abs(jt) < penetration*sFriction {
-                frictionForce = tangent.Mul(jt)
-        } else {
-                frictionForce = tangent.Mul(-penetration).Mul(dynamicFriction)
-        }
-        return frictionForce
+	var frictionForce Vec2
+	if math32.Abs(jt) < penetration*sFriction {
+		frictionForce = tangent.Mul(jt)
+	} else {
+		frictionForce = tangent.Mul(-penetration).Mul(dynamicFriction)
+	}
+	return frictionForce
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Vmarcelo49/quarkgo/physics"
+	"github.com/chewxy/math32"
 )
 
 // TestPlatformerWalk verifies that Walk sets the walk direction.
@@ -220,8 +221,8 @@ func TestPlatformerGetters(t *testing.T) {
 
 	// Floor max angle
 	pb.SetFloorMaxAngleDegree(30)
-	expected := float32(30.0) * (physics.Pi / 180.0)
-	if physics.Abs(pb.FloorMaxAngle()-expected) > 1e-4 {
+	expected := float32(30.0) * (math32.Pi / 180.0)
+	if math32.Abs(pb.FloorMaxAngle()-expected) > 1e-4 {
 		t.Errorf("floorMaxAngle = %f, want %f", pb.FloorMaxAngle(), expected)
 	}
 }

@@ -159,7 +159,7 @@ func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
                                 // edgeNormal points outward from A, so negate to get B→A
                                 c.Normal = edgeNormal
                                 c.Penetration = depth
-                                c.ReferenceParticles = []*Particle{}
+                                c.ReferenceParticles = nearestEdgeParticles(p.GlobalPosition(), polyA)
                                 contacts = append(contacts, c)
                         }
                 }
@@ -178,7 +178,7 @@ func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
                                 // is on A, the normal should point from B toward A = outward from B.
                                 c.Normal = edgeNormal
                                 c.Penetration = depth
-                                c.ReferenceParticles = []*Particle{}
+                                c.ReferenceParticles = nearestEdgeParticles(p.GlobalPosition(), polyB)
                                 contacts = append(contacts, c)
                         }
                 }
@@ -663,22 +663,20 @@ func LineIntersectionLine(d1A, d1B, d2A, d2B Vec2) Vec2 {
 }
 
 // pointInPolygon reports whether a point is inside a convex polygon.
-// Uses the winding number algorithm (PointInPolygonWN in C++).
+// For CW winding in screen coords (Y down), interior = RIGHT side = cross <= 0.
+// Point is inside if cross <= 0 for ALL edges.
 func pointInPolygon(point Vec2, poly []*Particle) bool {
 	n := len(poly)
 	if n < 3 {
 		return false
 	}
-	// Cross-product test for convex polygons: point must be on the
-	// same side of all edges. For CW winding in screen coords (Y down),
-	// inside = left side = cross >= 0 for all edges.
 	for i := 0; i < n; i++ {
 		p1 := poly[i].GlobalPosition()
 		p2 := poly[(i+1)%n].GlobalPosition()
 		edge := p2.Sub(p1)
 		toPoint := point.Sub(p1)
 		cross := edge.X*toPoint.Y - edge.Y*toPoint.X
-		if cross < 0 {
+		if cross > 0 {
 			return false
 		}
 	}

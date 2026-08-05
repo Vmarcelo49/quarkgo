@@ -150,6 +150,14 @@ func (m *Manifold) Solve() {
                 if penetration < 0 {
                         penetration = 0
                 }
+		// Cap penetration to prevent extreme forces from deep penetration
+		maxPen := float32(20.0)
+		if contact.Particle != nil {
+			r := contact.Particle.Radius()
+			if r > 1 { maxPen = r * 3 }
+		}
+		if penetration > maxPen { penetration = maxPen }
+
 
                 // Response force
                 responseForce := contact.Normal.Mul(penetration)

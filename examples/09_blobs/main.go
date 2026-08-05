@@ -4,6 +4,7 @@ package main
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	"github.com/Vmarcelo49/quarkgo/examples/common"
 	"github.com/Vmarcelo49/quarkgo/physics"
@@ -28,17 +29,18 @@ func NewBlobsScene() *BlobsScene {
 
 func (s *BlobsScene) Update() error {
 	// Spawn blob on Space
-	if ebiten.IsKeyPressed(ebiten.KeySpace) {
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		mouseX, mouseY := ebiten.CursorPosition()
 		mousePos := physics.Vec2{X: float32(mouseX), Y: float32(mouseY)}
 
 		sb := physics.NewSoftBody()
 		sb.AddMesh(physics.NewPolygonMesh(64, 12, physics.Vec2Zero(), -1))
 		sb.SetPosition(mousePos)
-		sb.SetRigidity(0.5)
+		sb.SetRigidity(1)
 		sb.SetMass(0.5)
+		sb.SetShapeMatchingEnabled(true, false)
 		sb.SetAreaPreservingEnabled(true)
-		sb.SetAreaPreservingRate(0.7)
+		sb.SetAreaPreservingRate(0.5)
 		s.World.AddSoftBody(sb)
 	}
 

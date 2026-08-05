@@ -14,11 +14,16 @@ type BenchmarkBoxes2Scene struct {
 }
 
 func NewBenchmarkBoxes2Scene() *BenchmarkBoxes2Scene {
+
 	scene := common.NewScene(1024, 600)
 	scene.World.SetGravity(physics.Vec2{X: 0, Y: 0.1})
 	scene.World.SetSleepingEnabled(false)
 	scene.SpawnRectSize = 16
-
+	scene.Renderer.ShowBoundingBoxes = false
+	scene.Renderer.ShowColliders = false
+	scene.Renderer.ShowJoints = false
+	scene.Renderer.ShowSprings = false
+	scene.Renderer.ShowParticles = false
 	// Wide floor
 	scene.AddStaticRect(512, 550, 5000, 64)
 
@@ -43,6 +48,7 @@ func (s *BenchmarkBoxes2Scene) Update() error {
 }
 
 func main() {
+	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(1024, 600)
 	ebiten.SetWindowTitle("QuarkPhysics Go — Example 08: Benchmark Boxes 2 (600 bodies)")
 	scene := NewBenchmarkBoxes2Scene()

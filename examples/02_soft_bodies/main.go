@@ -44,10 +44,11 @@ func NewSoftBodiesScene() *SoftBodiesScene {
 
 	// Simple polygon (no polar grid)
 	sb3 := physics.NewSoftBody()
-	sb3.AddMesh(physics.NewPolygonMesh(64, 12, physics.Vec2Zero(), -1))
+	sb3.AddMesh(physics.NewPolygonMesh(64, 12, physics.Vec2Zero(), 0))
 	sb3.SetPosition(physics.Vec2{X: 350, Y: 0})
 	sb3.SetRigidity(0.1)
 	sb3.SetMass(0.5)
+	sb3.SetAreaPreservingEnabled(true)
 	scene.World.AddSoftBody(sb3)
 
 	// Polar-gridded polygon

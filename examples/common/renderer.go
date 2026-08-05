@@ -13,6 +13,7 @@ import (
 // Renderer draws physics bodies to an Ebitengine image.
 // Ported from QPhysicsRenderer.
 type Renderer struct {
+	Antialias         bool
 	ShowColliders     bool
 	ShowBoundingBoxes bool
 	ShowSprings       bool
@@ -28,6 +29,7 @@ type Renderer struct {
 // NewRenderer creates a Renderer with default settings.
 func NewRenderer() *Renderer {
 	return &Renderer{
+		Antialias:     true,
 		ShowColliders: true,
 		ShowSprings:   true,
 		ShowJoints:    true,
@@ -44,17 +46,18 @@ var (
 	colorParticle = rgb(202, 158, 219)
 	colorDynamic  = rgb(48, 182, 3)
 	colorStatic   = rgb(141, 141, 141)
-	colorSoft     = color.RGBA{R: 255, G: 150, B: 100, A: 255}
-	colorArea     = color.RGBA{R: 100, G: 255, B: 150, A: 80}
-	colorBg       = color.RGBA{R: 25, G: 25, B: 30, A: 255}
-	colorSpring   = color.RGBA{R: 60, G: 60, B: 70, A: 200}
-	colorJoint    = color.RGBA{R: 255, G: 255, B: 100, A: 200}
+	colorSoft     = rgb(255, 150, 100)
+	colorArea     = rgb(100, 255, 150)
+	colorBg       = rgb(25, 25, 30)
+	colorSpring   = rgb(95, 127, 98)
+	colorJoint    = rgb(255, 255, 100)
 	colorRay      = rgb(102, 102, 102)
 	colorRayHit   = rgb(255, 0, 0)
-	colorDrag     = color.RGBA{R: 255, G: 255, B: 0, A: 200}
-	colorAABB     = color.RGBA{R: 40, G: 40, B: 50, A: 100}
+	colorDrag     = rgb(255, 255, 0)
+	colorAABB     = rgb(90, 180, 194)
 )
 
+// helper method for VSCode color picker
 func rgb(r, g, b uint8) color.RGBA {
 	return color.RGBA{r, g, b, 255}
 }
@@ -141,7 +144,7 @@ func (r *Renderer) drawBody(screen *ebiten.Image, body *physics.Body) {
 				if rad < 1 {
 					rad = 2
 				}
-				vector.FillCircle(screen, pos.X, pos.Y, rad, colorParticle, false)
+				vector.FillCircle(screen, pos.X, pos.Y, rad, colorParticle, r.Antialias)
 			}
 		}
 
@@ -150,7 +153,7 @@ func (r *Renderer) drawBody(screen *ebiten.Image, body *physics.Body) {
 			for _, spring := range mesh.Springs() {
 				a := spring.ParticleA().GlobalPosition()
 				b := spring.ParticleB().GlobalPosition()
-				vector.StrokeLine(screen, a.X, a.Y, b.X, b.Y, 0.5, colorSpring, false)
+				vector.StrokeLine(screen, a.X, a.Y, b.X, b.Y, 0.5, colorSpring, r.Antialias)
 			}
 		}
 	}
@@ -159,7 +162,7 @@ func (r *Renderer) drawBody(screen *ebiten.Image, body *physics.Body) {
 		aabb := body.AABB()
 		vector.StrokeRect(screen, aabb.Min.X, aabb.Min.Y,
 			aabb.Max.X-aabb.Min.X, aabb.Max.Y-aabb.Min.Y,
-			1, colorAABB, true)
+			1, colorAABB, r.Antialias)
 	}
 }
 
@@ -168,13 +171,13 @@ func (r *Renderer) drawJoint(screen *ebiten.Image, joint *physics.Joint) {
 	// b := joint.AnchorBGlobalPosition()
 	// vector.StrokeLine(screen, a.X, a.Y, b.X, b.Y, 1.5, colorJoint, true)
 	// Draw anchor points
-	vector.FillCircle(screen, a.X, a.Y, 3, colorJoint, false)
+	vector.FillCircle(screen, a.X, a.Y, 3, colorJoint, r.Antialias)
 }
 
 func (r *Renderer) drawSpring(screen *ebiten.Image, spring *physics.Spring) {
 	a := spring.ParticleA().GlobalPosition()
 	b := spring.ParticleB().GlobalPosition()
-	vector.StrokeLine(screen, a.X, a.Y, b.X, b.Y, 1.0, colorSpring, false)
+	vector.StrokeLine(screen, a.X, a.Y, b.X, b.Y, 1.0, colorSpring, r.Antialias)
 }
 
 func (r *Renderer) drawRaycast(screen *ebiten.Image, ray *physics.Raycast) {
@@ -182,15 +185,15 @@ func (r *Renderer) drawRaycast(screen *ebiten.Image, ray *physics.Raycast) {
 	vec := ray.RayVector()
 	endX := pos.X + vec.X
 	endY := pos.Y + vec.Y
-	vector.StrokeLine(screen, pos.X, pos.Y, endX, endY, 1, colorRay, false)
+	vector.StrokeLine(screen, pos.X, pos.Y, endX, endY, 1, colorRay, r.Antialias)
 
 	for _, c := range ray.Contacts() {
-		vector.FillCircle(screen, c.Position.X, c.Position.Y, 3, colorRayHit, false)
+		vector.FillCircle(screen, c.Position.X, c.Position.Y, 3, colorRayHit, r.Antialias)
 	}
 }
 
 // DrawDragLine draws a line from body to mouse cursor during drag.
 func (r *Renderer) DrawDragLine(screen *ebiten.Image, from, to physics.Vec2) {
-	vector.StrokeLine(screen, from.X, from.Y, to.X, to.Y, 2, colorDrag, false)
-	vector.FillCircle(screen, to.X, to.Y, 4, colorDrag, false)
+	vector.StrokeLine(screen, from.X, from.Y, to.X, to.Y, 2, colorDrag, r.Antialias)
+	vector.FillCircle(screen, to.X, to.Y, 4, colorDrag, r.Antialias)
 }

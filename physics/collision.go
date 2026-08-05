@@ -217,7 +217,7 @@ func polygonEdges(poly []*Particle) []edgeInfo {
 func distanceToPolygon(point Vec2, poly []*Particle) (float32, Vec2) {
         n := len(poly)
         bestDepth := float32(-MaxWorldSize)
-        bestNormal := Vec2Zero()
+        var bestNormal Vec2
         for i := 0; i < n; i++ {
                 p1 := poly[i].GlobalPosition()
                 p2 := poly[(i+1)%n].GlobalPosition()
@@ -250,7 +250,7 @@ func findMinPenAxis(refPoly, incidentPoly []*Particle) (normal Vec2, penetration
         n := len(refPoly)
         bestPen := float32(MaxWorldSize)
         bestIdx := 0
-        bestNormal := Vec2Zero()
+        var bestNormal Vec2
 
         for i := 0; i < n; i++ {
                 p1 := refPoly[i]

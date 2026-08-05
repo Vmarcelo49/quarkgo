@@ -20,6 +20,11 @@ func NewRaycastsScene() *RaycastsScene {
 	scene := common.NewScene(1024, 600)
 	scene.World.SetGravity(physics.Vec2{X: 0, Y: 0})
 	scene.CreateSceneBorders()
+	scene.Renderer.ShowBoundingBoxes = false
+	scene.Renderer.ShowRaycasts = true
+	scene.Renderer.ShowColliders = false
+	scene.Renderer.ShowJoints = false
+	scene.Renderer.ShowSprings = true
 
 	// 15 random bodies
 	for i := 0; i < 15; i++ {
@@ -68,6 +73,7 @@ func (s *RaycastsScene) Update() error {
 }
 
 func main() {
+	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(1024, 600)
 	ebiten.SetWindowTitle("QuarkPhysics Go — Example 05: Raycasts (Move mouse)")
 	scene := NewRaycastsScene()

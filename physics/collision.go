@@ -233,7 +233,7 @@ func distanceToPolygon(point Vec2, poly []*Particle) (float32, Vec2) {
         }
         // If bestDepth < 0, the point is inside the polygon.
         // Penetration depth = -bestDepth (positive).
-        if bestDepth < 0 {
+        if bestDepth <= 0 {
                 return -bestDepth, bestNormal
         }
         return 0, bestNormal

@@ -3,12 +3,12 @@
 package common
 
 import (
-        "math/rand"
-        "time"
+	"math/rand"
+	"time"
 
-        "github.com/hajimehoshi/ebiten/v2"
-        "github.com/Vmarcelo49/quarkgo/mesh/polypartition"
-        "github.com/Vmarcelo49/quarkgo/physics"
+	"github.com/Vmarcelo49/quarkgo/mesh/polypartition"
+	"github.com/Vmarcelo49/quarkgo/physics"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // init registers the polypartition-based convex decomposition

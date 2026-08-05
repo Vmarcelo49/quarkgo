@@ -3,7 +3,7 @@
 package main
 
 import (
-	"math/rand"
+	"math/rand/v2"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
@@ -20,26 +20,25 @@ func NewRaycastsScene() *RaycastsScene {
 	scene := common.NewScene(1024, 600)
 	scene.World.SetGravity(physics.Vec2{X: 0, Y: 0})
 	scene.CreateSceneBorders()
+	scene.Renderer.Antialias = false
 	scene.Renderer.ShowBoundingBoxes = false
 	scene.Renderer.ShowRaycasts = true
 	scene.Renderer.ShowColliders = false
-	scene.Renderer.ShowJoints = false
-	scene.Renderer.ShowSprings = true
 
 	// 15 random bodies
 	for range 15 {
-		x := float32(rand.Intn(800) + 100)
-		y := float32(rand.Intn(400) + 100)
-		switch rand.Intn(3) {
+		x := float32(rand.IntN(800) + 100)
+		y := float32(rand.IntN(400) + 100)
+		switch rand.IntN(3) {
 		case 0:
-			w := float32(rand.Intn(96) + 32)
-			h := float32(rand.Intn(96) + 32)
+			w := float32(rand.IntN(96) + 32)
+			h := float32(rand.IntN(96) + 32)
 			scene.AddRectBodySized(x, y, w, h)
 		case 1:
-			r := float32(rand.Intn(48) + 16)
-			scene.AddPolygonBodyR(x, y, rand.Intn(6)+6, r)
+			r := float32(rand.IntN(48) + 16)
+			scene.AddPolygonBodyR(x, y, rand.IntN(6)+6, r)
 		case 2:
-			r := float32(rand.Intn(48) + 16)
+			r := float32(rand.IntN(48) + 16)
 			scene.AddCircleBodyR(x, y, r)
 		}
 	}
@@ -73,7 +72,6 @@ func (s *RaycastsScene) Update() error {
 }
 
 func main() {
-	ebiten.SetScreenClearedEveryFrame(false)
 	ebiten.SetWindowSize(1024, 600)
 	ebiten.SetWindowTitle("QuarkPhysics Go — Example 05: Raycasts (Move mouse)")
 	scene := NewRaycastsScene()

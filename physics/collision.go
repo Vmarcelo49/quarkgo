@@ -138,7 +138,6 @@ func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
         }
 
         // bestNormal points from A→B. The Manifold convention is B→A, so negate.
-        contactNormal := bestNormal.Neg() // B→A
 
         var contacts []*Contact
 
@@ -180,7 +179,8 @@ func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
                 }
         }
 
-        // No vertices inside = no collision\n	return contacts
+        // No vertices inside = no collision
+	return contacts
 }
 
 // edgeInfo holds an edge's normal and the two particles forming it.

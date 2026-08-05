@@ -10,6 +10,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
+func init() {
+	ebiten.SetScreenClearedEveryFrame(false)
+}
+
 // Renderer draws physics bodies to an Ebitengine image.
 // Ported from QPhysicsRenderer.
 type Renderer struct {
@@ -40,6 +44,7 @@ func NewRenderer() *Renderer {
 		dpo:           vector.DrawPathOptions{},
 		fo:            vector.FillOptions{},
 	}
+
 }
 
 var (

@@ -34,12 +34,8 @@ func GetCollisions(bodyA, bodyB *Body, pool *ContactPool, applyHotSolvers bool) 
                                 // Soft body (polyline) vs rigid body (polygon)
                                 contacts = append(contacts, polylineAndPolygon(meshA.polygon, meshB.polygon, pool)...)
                         case cbA == CollisionPolygons && cbB == CollisionPolyline:
-                                // Rigid body (polygon) vs soft body (polyline) — swap and flip normals
-                                polyContacts := polylineAndPolygon(meshB.polygon, meshA.polygon, pool)
-                                for _, c := range polyContacts {
-                                        c.Normal = c.Normal.Neg()
-                                }
-                                contacts = append(contacts, polyContacts...)
+				// Rigid (polygons) vs soft (polyline). Normal is correct (outward from polygon = reference→incident).
+				contacts = append(contacts, polylineAndPolygon(meshB.polygon, meshA.polygon, pool)...)
                         case cbA == CollisionPolyline && cbB == CollisionPolyline:
                                 // Soft body vs soft body — test both directions
                                 contacts = append(contacts, polylineAndPolyline(meshA.polygon, meshB.polygon, pool)...)

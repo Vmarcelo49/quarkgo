@@ -555,7 +555,7 @@ func circleVsPolygon(circleMesh, polygonMesh *Mesh, pool *ContactPool) []*Contac
 			// Nearest edge
 			edgeVec := npPos.Sub(pPos)
 			edgeVecUnit := edgeVec.Normalized()
-			edgeVecNormal := Vec2{X: -edgeVec.Y, Y: edgeVec.X}.Normalized()
+			edgeVecNormal := Vec2{X: edgeVec.Y, Y: -edgeVec.X}.Normalized()
 
 			circleToEdgeBegin := cPos.Sub(pPos)
 			pen := circleToEdgeBegin.Dot(edgeVecNormal)
@@ -663,8 +663,13 @@ func LineIntersectionLine(d1A, d1B, d2A, d2B Vec2) Vec2 {
 }
 
 // pointInPolygon reports whether a point is inside a convex polygon.
-// For CW winding in screen coords (Y down), interior = RIGHT side = cross <= 0.
-// Point is inside if cross <= 0 for ALL edges.
+// For CW winding in screen coords (Y down), interior = RIGHT side of edge.
+// Cross product (edge × toPoint): positive = LEFT (outside), negative/zero = RIGHT (inside).
+// Point is inside if cross <= 0 for ALL edges... actually:
+// edge=(dx,dy), toPoint=(px,py), cross = dx*py - dy*px
+// For CW in Y-down: going right (dx>0,dy=0), right side is down (py>0).
+// cross = dx*py - 0 = dx*py > 0 when py>0 (point is on the right/inside).
+// So inside = cross >= 0 for ALL edges. Outside = any cross < 0.
 func pointInPolygon(point Vec2, poly []*Particle) bool {
 	n := len(poly)
 	if n < 3 {
@@ -676,7 +681,7 @@ func pointInPolygon(point Vec2, poly []*Particle) bool {
 		edge := p2.Sub(p1)
 		toPoint := point.Sub(p1)
 		cross := edge.X*toPoint.Y - edge.Y*toPoint.X
-		if cross > 0 {
+		if cross < 0 {
 			return false
 		}
 	}

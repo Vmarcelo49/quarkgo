@@ -73,7 +73,7 @@ func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
 
         // Find the minimum penetration axis across all edges of both polygons.
         // The normal points from A toward B.
-        var _ Vec2
+        var bestNormal Vec2
         bestPenetration := float32(MaxWorldSize)
 
         // Test polyA's edges — outward normal of A points away from A.

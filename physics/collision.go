@@ -146,7 +146,7 @@ func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
                 if pointInPolygon(p.GlobalPosition(), polyA) {
                         // Find the penetration depth: distance from p to the nearest edge of A
                         depth, edgeNormal := distanceToPolygon(p.GlobalPosition(), polyA)
-                        if depth > 0 {
+                        if depth >= 0 {
                                 c := pool.Get()
                                 c.Particle = p
                                 c.Position = p.GlobalPosition()
@@ -164,7 +164,7 @@ func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
         for _, p := range polyA {
                 if pointInPolygon(p.GlobalPosition(), polyB) {
                         depth, edgeNormal := distanceToPolygon(p.GlobalPosition(), polyB)
-                        if depth > 0 {
+                        if depth >= 0 {
                                 c := pool.Get()
                                 c.Particle = p
                                 c.Position = p.GlobalPosition()

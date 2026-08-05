@@ -4,6 +4,7 @@ go 1.26
 
 require (
 	github.com/Vmarcelo49/quarkgo v0.0.0
+	github.com/chewxy/math32 v1.11.2
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 )
 

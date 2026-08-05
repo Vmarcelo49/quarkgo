@@ -5,6 +5,7 @@ package main
 import (
 	"math/rand/v2"
 
+	"github.com/chewxy/math32"
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"github.com/Vmarcelo49/quarkgo/examples/common"
@@ -49,8 +50,8 @@ func NewRaycastsScene() *RaycastsScene {
 	center := physics.Vec2{X: 400, Y: 400}
 	numRays := 90
 	for i := range numRays {
-		angle := float32(i) / float32(numRays) * physics.Pi * 2
-		dir := physics.Vec2{X: physics.Cos(angle) * 1000, Y: physics.Sin(angle) * 1000}
+		angle := float32(i) / float32(numRays) * math32.Pi * 2
+		dir := physics.Vec2{X: math32.Cos(angle) * 1000, Y: math32.Sin(angle) * 1000}
 		ray := physics.NewRaycast(center, dir, true)
 		scene.World.AddRaycast(ray)
 		r.raycasts = append(r.raycasts, ray)

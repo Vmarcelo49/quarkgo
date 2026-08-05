@@ -58,7 +58,7 @@ func pinJointSample(scene *common.Scene, x, y float32) {
 
 func springDistanceJointSample(scene *common.Scene, x, y float32) {
 	var prev *physics.RigidBody
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		ball := scene.AddCircleBodyR(x, y+float32(i)*48, 24)
 		if i == 0 {
 			// Pin first ball to air
@@ -100,7 +100,7 @@ func grooveJointSample(scene *common.Scene, x, y float32) {
 
 func distanceJointSample(scene *common.Scene, x, y float32) {
 	var prev *physics.RigidBody
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		box := scene.AddRectBodySized(x, y+float32(i)*64, 32, 48)
 		if i == 0 {
 			j := physics.NewJoint(box,

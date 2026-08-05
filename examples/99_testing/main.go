@@ -21,15 +21,15 @@ func NewTestingScene() *TestingScene {
 	scene.CreateSceneBorders()
 
 	// 5 bouncing circles
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		x := float32(rand.Intn(800) + 100)
 		y := float32(rand.Intn(400) + 100)
 		ball := scene.AddCircleBodyR(x, y, 24)
 		ball.SetRestitution(0.9)
 		// Give random velocity
 		ball.SetPreviousPosition(physics.Vec2{
-			X: x - float32(rand.Intn(10) - 5),
-			Y: y - float32(rand.Intn(10) - 5),
+			X: x - float32(rand.Intn(10)-5),
+			Y: y - float32(rand.Intn(10)-5),
 		})
 	}
 

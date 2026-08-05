@@ -32,8 +32,8 @@ func NewBenchmarkBoxes2Scene() *BenchmarkBoxes2Scene {
 	boxHeapCount := 20
 	startX := float32(512) - float32(boxGroupCount*16)/2
 	startY := float32(550) - 40
-	for row := 0; row < boxHeapCount; row++ {
-		for col := 0; col < boxGroupCount; col++ {
+	for row := range boxHeapCount {
+		for col := range boxGroupCount {
 			x := startX + float32(col)*16
 			y := startY - float32(row)*16
 			scene.AddRectBodySized(x, y, 16, 16)

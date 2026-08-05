@@ -15,6 +15,7 @@ import (
 	"os"
 
 	"github.com/Vmarcelo49/quarkgo/physics"
+	"github.com/chewxy/math32"
 )
 
 // qmeshFile is the top-level JSON structure.
@@ -129,7 +130,7 @@ func LoadJSON(jsonData []byte) ([]physics.MeshData, error) {
 		}
 
 		// Rotation (convert degrees to radians)
-		md.Rotation = mesh.Rotation * (physics.Pi / 180.0)
+		md.Rotation = mesh.Rotation * (math32.Pi / 180.0)
 
 		result = append(result, md)
 	}
@@ -148,7 +149,7 @@ func MarshalJSON(meshes []physics.MeshData) ([]byte, error) {
 			Polygon:         md.Polygon,
 			UVMaps:          md.UVMaps,
 			Position:        [2]float32{md.Position.X, md.Position.Y},
-			Rotation:        md.Rotation * (180.0 / physics.Pi), // radians to degrees
+			Rotation:        md.Rotation * (180.0 / math32.Pi), // radians to degrees
 		}
 
 		entry.Particles = make([]qmeshParticle, len(md.ParticlePositions))

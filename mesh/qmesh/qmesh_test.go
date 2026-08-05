@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Vmarcelo49/quarkgo/physics"
+	"github.com/chewxy/math32"
 )
 
 // TestQMeshLoadJSON verifies that .qmesh JSON is parsed correctly.
@@ -127,8 +128,8 @@ func TestQMeshRotationConversion(t *testing.T) {
 		t.Fatalf("LoadJSON failed: %v", err)
 	}
 
-	expected := float32(90.0) * (physics.Pi / 180.0)
-	if Abs(meshes[0].Rotation-expected) > 1e-6 {
+	expected := float32(90.0) * (math32.Pi / 180.0)
+	if math32.Abs(meshes[0].Rotation-expected) > 1e-6 {
 		t.Errorf("rotation = %f, want %f (radians)", meshes[0].Rotation, expected)
 	}
 }
@@ -178,11 +179,4 @@ func TestQMeshRoundTrip(t *testing.T) {
 	if parsed[0].Position.X != 50 || parsed[0].Position.Y != 50 {
 		t.Errorf("round-trip position = %v, want (50,50)", parsed[0].Position)
 	}
-}
-
-func Abs(x float32) float32 {
-	if x < 0 {
-		return -x
-	}
-	return x
 }

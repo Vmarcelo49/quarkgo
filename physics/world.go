@@ -1,5 +1,7 @@
 package physics
 
+import "github.com/chewxy/math32"
+
 // World manages a physics simulation. Matches QWorld in qworld.h, qworld.cpp.
 //
 // The World owns all bodies, joints, springs, raycasts, and the contact pool.
@@ -67,7 +69,7 @@ func NewWorld(opts ...WorldOption) *World {
 		enableSleeping:              true,
 		enableBroadphase:            true,
 		sleepingPositionTolerance:   0.1,
-		sleepingRotationTolerance:   Pi / 180.0,
+		sleepingRotationTolerance:   math32.Pi / 180.0,
 		softBodyCollisionHysteresis: 0.2,
 		collisionExceptions:         make(map[bodyPairKey]struct{}),
 		contactPool:                 NewContactPool(),
@@ -832,9 +834,9 @@ func (w *World) updateSleeping() {
 
 		for _, body := range island {
 			if body.bodyType == BodyTypeRigid {
-				velX := Abs(body.position.X - body.prevPosition.X)
-				velY := Abs(body.position.Y - body.prevPosition.Y)
-				angularVel := Abs(body.rotation - body.prevRotation)
+				velX := math32.Abs(body.position.X - body.prevPosition.X)
+				velY := math32.Abs(body.position.Y - body.prevPosition.Y)
+				angularVel := math32.Abs(body.rotation - body.prevRotation)
 
 				if velX > w.sleepingPositionTolerance ||
 					velY > w.sleepingPositionTolerance ||
@@ -847,8 +849,8 @@ func (w *World) updateSleeping() {
 				hasMovingParticles := false
 				for _, mesh := range body.meshes {
 					for _, particle := range mesh.particles {
-						velX := Abs(particle.GlobalPosition().X - particle.PreviousGlobalPosition().X)
-						velY := Abs(particle.GlobalPosition().Y - particle.PreviousGlobalPosition().Y)
+						velX := math32.Abs(particle.GlobalPosition().X - particle.PreviousGlobalPosition().X)
+						velY := math32.Abs(particle.GlobalPosition().Y - particle.PreviousGlobalPosition().Y)
 						if velX > w.sleepingPositionTolerance ||
 							velY > w.sleepingPositionTolerance {
 							hasMovingParticles = true

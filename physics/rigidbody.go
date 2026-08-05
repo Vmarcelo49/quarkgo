@@ -1,5 +1,7 @@
 package physics
 
+import "github.com/chewxy/math32"
+
 // RigidBody is a non-deformable solid body simulated with Verlet integration.
 // Matches QRigidBody in qrigidbody.h, qrigidbody.cpp.
 //
@@ -198,11 +200,11 @@ func (rb *RigidBody) Update() {
 
 	// === Float drift clamp (qrigidbody.cpp:146-153) ===
 	// DO NOT REMOVE — intentional, fights float drift in stacked bodies.
-	if Abs(vel.X) < 0.01 {
+	if math32.Abs(vel.X) < 0.01 {
 		vel.X = 0
 		rb.prevPosition.X = rb.position.X
 	}
-	if Abs(vel.Y) < 0.01 {
+	if math32.Abs(vel.Y) < 0.01 {
 		vel.Y = 0
 		rb.prevPosition.Y = rb.position.Y
 	}

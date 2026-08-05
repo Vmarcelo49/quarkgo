@@ -1,6 +1,10 @@
 package physics
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/chewxy/math32"
+)
 
 // TestParallelNarrowphaseParity verifies that parallel narrowphase produces
 // the same simulation results as serial narrowphase.
@@ -50,7 +54,7 @@ func TestParallelNarrowphaseParity(t *testing.T) {
 	// (shouldn't affect deterministic Verlet integration, but be lenient)
 	tol := float32(0.1)
 	for i := range serial {
-		if Abs(serial[i].X-parallel[i].X) > tol || Abs(serial[i].Y-parallel[i].Y) > tol {
+		if math32.Abs(serial[i].X-parallel[i].X) > tol || math32.Abs(serial[i].Y-parallel[i].Y) > tol {
 			t.Errorf("body %d position mismatch:\n  serial:   (%.4f, %.4f)\n  parallel: (%.4f, %.4f)",
 				i, serial[i].X, serial[i].Y, parallel[i].X, parallel[i].Y)
 		}

@@ -3,10 +3,10 @@
 package main
 
 import (
+	"github.com/chewxy/math32"
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"github.com/Vmarcelo49/quarkgo/examples/common"
-	"github.com/Vmarcelo49/quarkgo/physics"
 )
 
 type FrictionsScene struct {
@@ -23,7 +23,7 @@ func NewFrictionsScene() *FrictionsScene {
 	floor.SetStaticFriction(1.0)
 
 	// 3 angled platforms
-	platformAngle := float32(6.2 * (physics.Pi / 180.0))
+	platformAngle := float32(6.2 * (math32.Pi / 180.0))
 	for row := range 3 {
 		px := float32(200)
 		py := float32(176 + row*120)

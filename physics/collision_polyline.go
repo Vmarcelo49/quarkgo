@@ -1,5 +1,7 @@
 package physics
 
+import "github.com/chewxy/math32"
+
 // Polyline collision methods for soft bodies.
 // Faithful port of PolylineAndPolygon, PolylineAndPolyline, CircleAndPolyline2,
 // and CircleAndCircleSelf in qcollision.cpp.
@@ -59,7 +61,7 @@ func polylineAndPolygon(polylineParticles, polygonParticles []*Particle, pool *C
 
 		var bisectorVector Vec2
 		if isSelfCollision {
-			rayLength := Abs((p.GlobalPosition().Sub(pp.GlobalPosition())).Dot(bisectorUnit)) * 0.5
+			rayLength := math32.Abs((p.GlobalPosition().Sub(pp.GlobalPosition())).Dot(bisectorUnit)) * 0.5
 			bisectorVector = bisectorUnit.Mul(rayLength)
 		} else {
 			// Find the nearest intersecting polygon edge (other than the
@@ -387,8 +389,8 @@ func polylineAndPolyline(testPolyline, targetPolyline []*Particle, pool *Contact
 					sAPos := sA.GlobalPosition()
 					bridgeVec := pAPos.Sub(sAPos)
 					dist := bridgeVec.Dot(sideNormal)
-					if Abs(dist) < minDistanceFallback {
-						minDistanceFallback = Abs(dist)
+					if math32.Abs(dist) < minDistanceFallback {
+						minDistanceFallback = math32.Abs(dist)
 						normal = sideNormal
 						penetration = dist
 						findedSide = [2]*Particle{sA, sB}
@@ -467,19 +469,19 @@ func polylineAndPolyline(testPolyline, targetPolyline []*Particle, pool *Contact
 					bridgeVec := pAPos.Sub(s1Pos)
 					testBridgeVec := pAPos.Sub(s1Pos)
 					perpProj := testBridgeVec.Dot(normal)
-					if Abs(perpProj) < minDistance {
-						if Abs(perpProj) < pARadius {
+					if math32.Abs(perpProj) < minDistance {
+						if math32.Abs(perpProj) < pARadius {
 							proj := bridgeVec.Dot(unit)
 							if proj >= 0 && proj <= segLen {
 								projSign := float32(1)
 								if perpProj < 0 {
 									projSign = -1
 								}
-								contactPenetration = Abs(pARadius*projSign - perpProj)
+								contactPenetration = math32.Abs(pARadius*projSign - perpProj)
 								contactPosition = pAPos.Sub(normal.Mul(pARadius * projSign))
 								contactNormal = normal
 								nearestSideIndex = is
-								minDistance = Abs(perpProj)
+								minDistance = math32.Abs(perpProj)
 							}
 						}
 					}
@@ -640,7 +642,7 @@ func circleAndPolyline2(circleParticles, polylineParticles []*Particle, pool *Co
 		c.Particle = particle
 		c.Position = pPos
 		c.Normal = normal
-		c.Penetration = Abs(penetration)
+		c.Penetration = math32.Abs(penetration)
 		c.ReferenceParticles = []*Particle{sideParticleA, sideParticleB}
 		contacts = append(contacts, c)
 	}
@@ -676,7 +678,7 @@ func circleAndCircleSelf(particles []*Particle, pool *ContactPool, specifiedRadi
 			rSum := rA + rB
 
 			if distSq < rSum*rSum && distSq > 1e-8 {
-				dist := Sqrt(distSq)
+				dist := math32.Sqrt(distSq)
 				normal := diff.Div(dist)
 				penetration := rSum - dist
 

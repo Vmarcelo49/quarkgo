@@ -1,5 +1,7 @@
 package physics
 
+import "github.com/chewxy/math32"
+
 // Mesh shape-matching and polygon constraint helpers.
 // Matches static methods on QMesh in qmesh.cpp.
 
@@ -32,7 +34,7 @@ func GetAveragePositionAndRotation(particles []*Particle) (Vec2, float32) {
 		sinAxis += currentVec.Dot(p.Position().Perpendicular())
 	}
 
-	rad := Atan2(sinAxis, cosAxis)
+	rad := math32.Atan2(sinAxis, cosAxis)
 	return averagePosition, rad
 }
 
@@ -138,7 +140,7 @@ func (m *Mesh) ApplyAngleConstraintsToPolygon() {
 	}
 
 	minAngle := m.minAngleConstraintOfPolygon
-	maxAngle := (Pi * 2.0) - minAngle
+	maxAngle := (math32.Pi * 2.0) - minAngle
 
 	n := len(m.polygon)
 	for i := range n {
@@ -161,9 +163,9 @@ func (m *Mesh) ApplyAngleConstraintsToPolygon() {
 		cosA := toNext.Dot(toPrev) / (prevLen * nextLen)
 		sinA := toNext.Dot(toPrev.Perpendicular()) / (prevLen * nextLen)
 
-		angleRad := Atan2(sinA, cosA)
+		angleRad := math32.Atan2(sinA, cosA)
 		if angleRad < 0 {
-			angleRad = (Pi * 2.0) - Abs(angleRad)
+			angleRad = (math32.Pi * 2.0) - math32.Abs(angleRad)
 		}
 
 		// First frame: just save the angle, don't apply constraints.

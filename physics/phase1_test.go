@@ -1,6 +1,10 @@
 package physics
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/chewxy/math32"
+)
 
 // TestBoxFallingUnderGravity verifies the core Phase 1 pipeline:
 //   - RigidBody with a rect mesh
@@ -146,7 +150,7 @@ func TestRigidBodyDriftClamp(t *testing.T) {
 
 	// After one step, the tiny velocity should have been clamped to 0.
 	vel := box.Position().Sub(box.PreviousPosition())
-	if Abs(vel.X) > 1e-6 {
+	if math32.Abs(vel.X) > 1e-6 {
 		t.Errorf("tiny X velocity not clamped: vel.X=%f", vel.X)
 	}
 }
@@ -207,7 +211,7 @@ func TestRectMeshFactory(t *testing.T) {
 	}
 	for i, want := range expectedPositions {
 		got := mesh.ParticleAt(i).Position()
-		if Abs(got.X-want.X) > 1e-6 || Abs(got.Y-want.Y) > 1e-6 {
+		if math32.Abs(got.X-want.X) > 1e-6 || math32.Abs(got.Y-want.Y) > 1e-6 {
 			t.Errorf("particle %d position = %v, want %v", i, got, want)
 		}
 	}
@@ -221,10 +225,10 @@ func TestCircleMeshFactory(t *testing.T) {
 		t.Errorf("circle mesh particle count = %d, want 1", mesh.ParticleCount())
 	}
 	p := mesh.ParticleAt(0)
-	if Abs(p.Radius()-10) > 1e-6 {
+	if math32.Abs(p.Radius()-10) > 1e-6 {
 		t.Errorf("circle particle radius = %f, want 10", p.Radius())
 	}
-	if Abs(p.Position().X-50) > 1e-6 || Abs(p.Position().Y-50) > 1e-6 {
+	if math32.Abs(p.Position().X-50) > 1e-6 || math32.Abs(p.Position().Y-50) > 1e-6 {
 		t.Errorf("circle particle position = %v, want (50,50)", p.Position())
 	}
 }
@@ -244,7 +248,7 @@ func TestPolygonMeshFactory(t *testing.T) {
 	for i := range 6 {
 		p := mesh.ParticleAt(i)
 		dist := p.Position().Length()
-		if Abs(dist-32) > 1e-5 {
+		if math32.Abs(dist-32) > 1e-5 {
 			t.Errorf("particle %d distance from center = %f, want 32", i, dist)
 		}
 	}
@@ -264,13 +268,13 @@ func TestApplyImpulse(t *testing.T) {
 
 	// prevPosition should be shifted by -impulse
 	expectedPrev := Vec2{X: 90, Y: 100}
-	if Abs(box.PreviousPosition().X-expectedPrev.X) > 1e-6 {
+	if math32.Abs(box.PreviousPosition().X-expectedPrev.X) > 1e-6 {
 		t.Errorf("after impulse, prevPos.X = %f, want %f", box.PreviousPosition().X, expectedPrev.X)
 	}
 
 	// After one step, the body should have moved by ~10 units (impulse → velocity)
 	world.Update()
-	if Abs(box.Position().X-110) > 1.0 {
+	if math32.Abs(box.Position().X-110) > 1.0 {
 		t.Errorf("after step, pos.X = %f, want ~110 (impulse applied)", box.Position().X)
 	}
 }

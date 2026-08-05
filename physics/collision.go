@@ -504,3 +504,15 @@ func pointInPolygon(point Vec2, poly []*Particle) bool {
 	if n < 3 {
 		return false
 	}
+	for i := 0; i < n; i++ {
+		p1 := poly[i].GlobalPosition()
+		p2 := poly[(i+1)%n].GlobalPosition()
+		edge := p2.Sub(p1)
+		toPoint := point.Sub(p1)
+		cross := edge.X*toPoint.Y - edge.Y*toPoint.X
+		if cross < 0 {
+			return false
+		}
+	}
+	return true
+}

@@ -7,8 +7,16 @@ import (
         "time"
 
         "github.com/hajimehoshi/ebiten/v2"
+        "github.com/Vmarcelo49/quarkgo/mesh/polypartition"
         "github.com/Vmarcelo49/quarkgo/physics"
 )
+
+// init registers the polypartition-based convex decomposition
+// function so concave polygon meshes are properly decomposed into
+// convex sub-polygons for SAT collision detection.
+func init() {
+        physics.SetConvexPartitioner(polypartition.ConvexPartitionFromParticles)
+}
 
 // Scene is the base structure for all example scenes.
 // Ported from QExampleScene.

@@ -84,8 +84,9 @@ type MeshData struct {
 // NewMesh creates an empty mesh.
 func NewMesh() *Mesh {
         return &Mesh{
-                minAngleConstraintOfPolygon: Pi * 0.3,
-                polygonBisectorsNeedsUpdate: true,
+                minAngleConstraintOfPolygon:   Pi * 0.3,
+                polygonBisectorsNeedsUpdate:   true,
+                subConvexPolygonsNeedsUpdate:  true,
         }
 }
 
@@ -244,10 +245,111 @@ func (m *Mesh) AddParticle(p *Particle) *Mesh {
         return m
 }
 
-// RemoveParticleAt removes the particle at the given index.
+// RemoveParticleAt removes the particle at the given index and cascades the
+// removal to polygon, springs, UV maps, and angle constraints.
+// Matches QMesh::RemoveParticleAt (qmesh.cpp:112-128).
+//
+// C++ calls RemoveParticleFromPolygon, RemoveMatchingSprings,
+// RemoveMatchingUVMaps, RemoveMatchingAngleConstraints before erasing the
+// particle from the vector. Then sets dirty flags (collisionBehaviorNeedsUpdate,
+// polygonBisectorsNeedsUpdate, inertiaNeedsUpdate, circumferenceNeedsUpdate)
+// and updates static body transforms if applicable.
 func (m *Mesh) RemoveParticleAt(i int) *Mesh {
+        if i < 0 || i >= len(m.particles) {
+                return m
+        }
+        particle := m.particles[i]
+
+        // Remove from polygon (if present).
+        m.removeParticleFromPolygon(particle)
+
+        // Remove springs that reference this particle.
+        m.removeMatchingSprings(particle)
+
+        // Remove/trim UV maps referencing this index.
+        m.removeMatchingUVMaps(i)
+
+        // Remove angle constraints referencing this particle.
+        m.removeMatchingAngleConstraints(particle)
+
+        // Erase the particle from the slice.
         m.particles = append(m.particles[:i], m.particles[i+1:]...)
+
+        // Cascade dirty flags to owner body.
+        if m.ownerBody != nil {
+                if m.ownerBody.mode == BodyModeStatic {
+                        m.ownerBody.UpdateMeshTransforms()
+                }
+                m.ownerBody.inertiaNeedsUpdate = true
+                m.ownerBody.circumferenceNeedsUpdate = true
+        }
+        m.collisionBehaviorNeedsUpdate = true
+        m.polygonBisectorsNeedsUpdate = true
         return m
+}
+
+// removeParticleFromPolygon removes the particle from the polygon slice if present.
+func (m *Mesh) removeParticleFromPolygon(p *Particle) {
+        for i, pp := range m.polygon {
+                if pp == p {
+                        m.polygon = append(m.polygon[:i], m.polygon[i+1:]...)
+                        return
+                }
+        }
+}
+
+// removeMatchingSprings removes all springs that reference the given particle.
+// Note: Go's Mesh has a single `springs` slice (internal springs are
+// identified by their `isInternal` flag, not a separate slice). Matches C++
+// RemoveMatchingSprings which removes from both boundary and internal lists.
+func (m *Mesh) removeMatchingSprings(p *Particle) {
+        newSprings := m.springs[:0]
+        for _, s := range m.springs {
+                if s.pA != p && s.pB != p {
+                        newSprings = append(newSprings, s)
+                }
+        }
+        m.springs = newSprings
+}
+
+// removeMatchingUVMaps removes the index from all UV maps and trims maps that
+// become too short. Matches C++ RemoveMatchingUVMaps which shifts indices
+// down by 1 for indices > i, and removes maps containing the deleted index.
+func (m *Mesh) removeMatchingUVMaps(removedIndex int) {
+        newUVMaps := m.uvMaps[:0]
+        for _, uv := range m.uvMaps {
+                // Drop the UV map if it contains the removed index.
+                contains := false
+                for _, idx := range uv {
+                        if idx == removedIndex {
+                                contains = true
+                                break
+                        }
+                }
+                if contains {
+                        continue
+                }
+                // Shift indices > removedIndex down by 1.
+                for j := range uv {
+                        if uv[j] > removedIndex {
+                                uv[j]--
+                        }
+                }
+                newUVMaps = append(newUVMaps, uv)
+        }
+        m.uvMaps = newUVMaps
+}
+
+// removeMatchingAngleConstraints removes all angle constraints that reference
+// the given particle (as pA, pB, or pC).
+func (m *Mesh) removeMatchingAngleConstraints(p *Particle) {
+        newAC := m.angleConstraints[:0]
+        for _, ac := range m.angleConstraints {
+                if ac.pA != p && ac.pB != p && ac.pC != p {
+                        newAC = append(newAC, ac)
+                }
+        }
+        m.angleConstraints = newAC
 }
 
 // RemoveParticle removes the given particle from the mesh.
@@ -606,6 +708,89 @@ func GeneratePolygonMeshData(radius float32, sideCount int, centerPosition Vec2,
                                         [2]int{c, a},
                                         [2]int{c, b},
                                 )
+                        }
+                }
+
+                // Adding a Center Particle (matches qmesh.cpp:1185-1198).
+                // For polarGrid > 0, add a center particle and radial springs from
+                // the center to the innermost ring. Without this, the innermost ring
+                // has no inward anchor and the soft body collapses inward.
+                centerParticleFactor := 0
+                if polarGrid > 0 {
+                        centerParticleFactor = 1
+                        res.ParticlePositions = append(res.ParticlePositions, centerPosition)
+                        res.ParticleRadValues = append(res.ParticleRadValues, particleRadius)
+                        res.ParticleInternalValues = append(res.ParticleInternalValues, true)
+                        res.ParticleEnabledValues = append(res.ParticleEnabledValues, true)
+                        res.ParticleLazyValues = append(res.ParticleLazyValues, false)
+                        // Radial springs from center to innermost ring.
+                        centerIdx := len(res.ParticlePositions) - 1
+                        for i := centerIdx - sideCount; i < centerIdx; i++ {
+                                res.InternalSpringList = append(res.InternalSpringList,
+                                        [2]int{centerIdx, i})
+                        }
+                }
+
+                // Adding construction springs (matches qmesh.cpp:1202-1214).
+                // For polarGrid >= 0, add ±2 boundary-neighbor springs to provide
+                // shear resistance. Without these, soft body polygons shear too easily.
+                if polarGrid >= 0 {
+                        pc := len(res.ParticlePositions)
+                        startIndex := pc - sideCount - centerParticleFactor
+                        for i := 0; i < sideCount; i++ {
+                                prevParticle := startIndex + ((i-2+sideCount)%sideCount)
+                                particle := startIndex + i
+                                nextParticle := startIndex + ((i + 2) % sideCount)
+                                res.InternalSpringList = append(res.InternalSpringList,
+                                        [2]int{prevParticle, particle},
+                                        [2]int{particle, nextParticle})
+                        }
+                }
+
+                // Adding UV Maps (matches qmesh.cpp:1219-1266).
+                if polarGrid <= 0 {
+                        // Fan: single UV map listing all polygon vertices.
+                        var map1 []int
+                        for i := range res.Polygon {
+                                map1 = append(map1, i)
+                        }
+                        res.UVMaps = append(res.UVMaps, map1)
+                } else if polarGrid == 1 {
+                        // Per-edge triangle to center.
+                        polySize := len(res.Polygon)
+                        centerIdx := len(res.ParticlePositions) - 1
+                        for i := 0; i < polySize; i++ {
+                                tri := []int{i, (i + 1) % polySize, centerIdx}
+                                res.UVMaps = append(res.UVMaps, tri)
+                        }
+                } else {
+                        // Grid of 2 triangles per quad + innermost ring fan.
+                        polySize := len(res.Polygon)
+                        // Quad triangles (between each pair of rings).
+                        for i := 0; i < len(res.ParticlePositions)-polySize-1; i++ {
+                                a := i
+                                var b int
+                                if (i+1)%polySize == 0 {
+                                        b = (i + 1) - polySize
+                                } else {
+                                        b = i + 1
+                                }
+                                c := b + polySize
+                                d := i + polySize
+                                res.UVMaps = append(res.UVMaps, []int{a, b, d})
+                                res.UVMaps = append(res.UVMaps, []int{b, c, d})
+                        }
+                        // Innermost ring fan (to center).
+                        centerIdx := len(res.ParticlePositions) - 1
+                        for i := len(res.ParticlePositions) - polySize - 1; i < centerIdx; i++ {
+                                var b int
+                                if (i+1)%polySize == 0 {
+                                        b = (i + 1) - polySize
+                                } else {
+                                        b = i + 1
+                                }
+                                tri := []int{i, b, centerIdx}
+                                res.UVMaps = append(res.UVMaps, tri)
                         }
                 }
         }

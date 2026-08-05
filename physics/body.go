@@ -76,6 +76,11 @@ type Body struct {
         isSleeping bool
         sleepTick  int
         canSleep   bool
+        // fixedVelocityTick / fixedAngularTick accumulate consecutive stationary
+        // steps. When both reach 120, the island goes to sleep. Reset to 0 on any
+        // motion. Matches qbody.h:124-125 + qworld.cpp:388-419.
+        fixedVelocityTick int
+        fixedAngularTick  int
 
         // Time scale
         enableBodySpecificTimeScale bool
@@ -91,6 +96,14 @@ type Body struct {
         // Cached-derived
         inertiaNeedsUpdate     bool
         circumferenceNeedsUpdate bool
+        // inertiaCache stores the clamped inertia (>= 500.0) so the warm path of
+        // Inertia() returns the same value the cold path computed. Without this
+        // cache, callers like ApplyForceAt/ApplyImpulse would recompute the
+        // unclamped formula and produce ~2.5x larger torque for small bodies.
+        // Matches qbody.h:44 `float inertia=0.0f` + qbody.h:261-268 GetInertia.
+        inertiaCache float32
+        // circumferenceCache stores the summed perimeter for the warm path.
+        circumferenceCache float32
 
         // Meshes
         meshes []*Mesh
@@ -227,43 +240,38 @@ func (b *Body) TotalInitialArea() float32 {
 }
 
 // Inertia returns the body's rotational inertia. Computed lazily.
-// Matches QBody::GetInertia in qbody.h:261-268.
+// Matches QBody::GetInertia in qbody.h:261-268 — including the >= 500.0 floor
+// on the WARM path. The clamped value is cached in b.inertiaCache so callers
+// after the first compute see the same floor that C++ returns from its
+// private `float inertia` field. Without this cache, small rigid bodies
+// (e.g. 10×10 with mass 1, area*2*mass ≈ 200 < 500) would compute ~2.5x
+// larger torque on every ApplyForce/ApplyImpulse call after the first.
 func (b *Body) Inertia() float32 {
         if b.inertiaNeedsUpdate {
                 inertia := b.TotalInitialArea() * 2.0 * b.mass
                 if inertia < 500.0 {
                         inertia = 500.0
                 }
-                // Note: we don't store inertia as a field because TotalInitialArea
-                // can change when meshes change. We recompute each call when dirty.
+                b.inertiaCache = inertia
                 b.inertiaNeedsUpdate = false
-                // Cache via a local closure variable — but since Body is embedded
-                // in RigidBody and others, and Inertia is called frequently, we
-                // store the cached value on a private field via type assertion.
-                // For simplicity in Phase 1, we recompute each time the flag is set.
                 return inertia
         }
-        // Recompute always for now — the cache invalidation logic needs a
-        // stored field. Will optimize in Phase 5.
-        return b.TotalInitialArea() * 2.0 * b.mass
+        return b.inertiaCache
 }
 
 // Circumference returns the total perimeter of all meshes' polygons.
+// Matches qbody.h:331-341 — caches the computed perimeter for the warm path.
 func (b *Body) Circumference() float32 {
         if b.circumferenceNeedsUpdate {
                 var res float32
                 for _, m := range b.meshes {
                         res += m.Circumference()
                 }
+                b.circumferenceCache = res
                 b.circumferenceNeedsUpdate = false
-                // Same caching note as Inertia
                 return res
         }
-        var res float32
-        for _, m := range b.meshes {
-                res += m.Circumference()
-        }
-        return res
+        return b.circumferenceCache
 }
 
 // --- Setters (fluent, return *Body) ---
@@ -379,6 +387,63 @@ func (b *Body) SetVelocityLimit(v float32) *Body { b.velocityLimit = v; return b
 // SetIntegratedVelocitiesEnabled controls whether Verlet integration runs.
 func (b *Body) SetIntegratedVelocitiesEnabled(v bool) *Body {
         b.enableIntegratedVelocities = v
+        return b
+}
+
+// SetBodySpecificTimeScaleEnabled toggles whether the body uses its own
+// time scale instead of the world's. Matches qbody.h:570-573.
+func (b *Body) SetBodySpecificTimeScaleEnabled(v bool) *Body {
+        b.enableBodySpecificTimeScale = v
+        return b
+}
+
+// SetBodySpecificTimeScale sets a per-body time scale. When the value changes
+// AND body-specific time scale is enabled, the body's implicit velocity
+// (position - prevPosition, and per-particle for soft bodies) is rescaled
+// to preserve continuity across the time-scale change. Matches qbody.h:579-615.
+//
+// velocityTimeScaleFactor logic (C++ qbody.h:583-590):
+//   - If old scale == 0: factor = 0 (no rescale; old was frozen)
+//   - If new < old:      factor = (1/old) * new  (slow down further)
+//   - If new >= old:     factor = 1.0             (no slow-down needed)
+//
+// For RIGID bodies: rescale (position - prevPosition) and (rotation - prevRotation).
+// For SOFT bodies: rescale each particle's (globalPosition - prevGlobalPosition).
+// For AREA bodies: no rescale (they don't integrate).
+func (b *Body) SetBodySpecificTimeScale(value float32) *Body {
+        if b.bodySpecificTimeScale == value {
+                return b
+        }
+        if b.enableBodySpecificTimeScale {
+                var velocityTimeScaleFactor float32 = 0.0
+                if b.bodySpecificTimeScale != 0 {
+                        if value < b.bodySpecificTimeScale {
+                                velocityTimeScaleFactor = (1.0 / b.bodySpecificTimeScale) * value
+                        } else {
+                                velocityTimeScaleFactor = 1.0
+                        }
+                }
+
+                if b.bodyType == BodyTypeRigid {
+                        vel := b.position.Sub(b.prevPosition)
+                        vel = vel.Mul(velocityTimeScaleFactor)
+                        b.prevPosition = b.position.Sub(vel)
+                        rotVel := b.rotation - b.prevRotation
+                        rotVel *= velocityTimeScaleFactor
+                        b.prevRotation = b.rotation - rotVel
+                } else if b.bodyType != BodyTypeArea {
+                        // Soft body — rescale per-particle velocities.
+                        for _, mesh := range b.meshes {
+                                for _, p := range mesh.particles {
+                                        vel := p.GlobalPosition().Sub(p.PreviousGlobalPosition())
+                                        vel = vel.Mul(velocityTimeScaleFactor)
+                                        p.SetPreviousGlobalPosition(p.GlobalPosition().Sub(vel))
+                                }
+                        }
+                }
+        }
+        b.WakeUp()
+        b.bodySpecificTimeScale = value
         return b
 }
 

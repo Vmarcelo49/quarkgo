@@ -37,6 +37,11 @@ type World struct {
         sleepingPositionTolerance float32
         sleepingRotationTolerance float32
 
+        // Soft body collision hysteresis (matches qworld.h:181).
+        // Controls how reactive soft bodies become in exceptional stress cases
+        // (compressed, fast-moving, heavily stacked). Range [0,1], default 0.2.
+        softBodyCollisionHysteresis float32
+
         // Debug
         debugGizmos bool
 
@@ -56,17 +61,18 @@ type World struct {
 // NewWorld constructs a World with the given options.
 func NewWorld(opts ...WorldOption) *World {
         w := &World{
-                enabled:                  true,
-                gravity:                  Vec2{X: 0, Y: 0.2},
-                timeScale:                1.0,
-                iteration:                4,
-                enableSleeping:           true,
-                enableBroadphase:         true,
-                sleepingPositionTolerance: 0.1,
-                sleepingRotationTolerance: Pi / 180.0,
-                collisionExceptions:      make(map[bodyPairKey]struct{}),
-                contactPool:              NewContactPool(),
-                debugGizmos:              false,
+                enabled:                      true,
+                gravity:                      Vec2{X: 0, Y: 0.2},
+                timeScale:                    1.0,
+                iteration:                    4,
+                enableSleeping:               true,
+                enableBroadphase:             true,
+                sleepingPositionTolerance:    0.1,
+                sleepingRotationTolerance:    Pi / 180.0,
+                softBodyCollisionHysteresis:  0.2,
+                collisionExceptions:          make(map[bodyPairKey]struct{}),
+                contactPool:                  NewContactPool(),
+                debugGizmos:                  false,
         }
         for _, opt := range opts {
                 opt(w)
@@ -125,6 +131,17 @@ func (w *World) IterationCount() int { return w.iteration }
 
 // SleepingEnabled reports whether sleeping is enabled.
 func (w *World) SleepingEnabled() bool { return w.enableSleeping }
+
+// SoftBodyCollisionHysteresis returns the global hysteresis factor for
+// soft-body-vs-soft-body collisions. Matches qworld.h:181. Default 0.2.
+func (w *World) SoftBodyCollisionHysteresis() float32 { return w.softBodyCollisionHysteresis }
+
+// SetSoftBodyCollisionHysteresis sets the global hysteresis factor.
+// Matches qworld.h:301. Range [0,1].
+func (w *World) SetSoftBodyCollisionHysteresis(v float32) *World {
+        w.softBodyCollisionHysteresis = v
+        return w
+}
 
 // BroadphaseEnabled reports whether broadphase is enabled.
 func (w *World) BroadphaseEnabled() bool { return w.enableBroadphase }
@@ -433,6 +450,17 @@ func (w *World) Update() {
                 }
         }
 
+        // 3.5 SAP sort — performed ONCE per Update (matches qworld.cpp:114
+        // which sorts bodies before the iteration loop). Previously this was
+        // inside the iteration loop (sapPairs re-sorting every iteration),
+        // which caused the SAP early-out to break at different points across
+        // iterations and produce divergent pair sets.
+        var sapSortedBodies []*Body
+        if w.enableBroadphase && w.broadPhase == nil {
+                // Pre-filter and sort once; sapPairs will skip its internal sort.
+                sapSortedBodies = sapSorted(w.bodies)
+        }
+
         // 4. Iteration loop
         for iter := 0; iter < w.iteration; iter++ {
                 // Update constraints (springs, angle constraints, joints)
@@ -452,7 +480,8 @@ func (w *World) Update() {
                         if w.broadPhase != nil {
                                 pairs = w.broadPhase.Pairs()
                         } else {
-                                pairs = sapPairs(w.bodies)
+                                // Use the pre-sorted body list (sort done once outside the loop).
+                                pairs = sapPairsFromSorted(sapSortedBodies)
                         }
                 } else {
                         pairs = bruteForcePairs(w.bodies)
@@ -515,10 +544,15 @@ func (w *World) Update() {
                 }
         }
 
-        // 6. Sleeping (Phase 3 will add full island-based sleeping)
-        // For Phase 1, we skip sleeping to keep the MVP simple.
+        // 9. Island-based sleeping.
+        // Faithful port of qworld.cpp:340-424. Bodies that haven't moved for
+        // 120 consecutive steps are put to sleep (integration + constraints
+        // skip them). Any motion wakes the entire island.
+        if w.enableSleeping {
+                w.updateSleeping()
+        }
 
-        // 7. OnStep events
+        // 10. OnStep events
         for _, b := range w.bodies {
                 if !b.enabled {
                         continue
@@ -778,6 +812,157 @@ func (w *World) UpdateConstraints() {
         }
 }
 
+// updateSleeping runs the island-based sleeping algorithm.
+// Faithful port of qworld.cpp:340-424 + GenerateIslands (qworld.cpp:1096-1124)
+// + CreateIslands (qworld.cpp:1070-1093).
+//
+// Algorithm:
+//  1. Generate collision islands via DFS over AABB-overlapping body pairs.
+//     Static bodies are NOT included in islands (they don't need to sleep).
+//  2. For each island, check if any body has moved more than the sleeping
+//     tolerance this step.
+//  3. If the island is stationary, increment each body's fixedVelocityTick
+//     and fixedAngularTick. When ALL bodies in the island reach 120 ticks,
+//     put the entire island to sleep (snap prev=current to zero velocity).
+//  4. If the island has moved, reset all ticks to 0 and wake the island.
+func (w *World) updateSleeping() {
+        islands := w.generateIslands()
+
+        for _, island := range islands {
+                islandNeedsAwake := false
+
+                for _, body := range island {
+                        if body.bodyType == BodyTypeRigid {
+                                velX := Abs(body.position.X - body.prevPosition.X)
+                                velY := Abs(body.position.Y - body.prevPosition.Y)
+                                angularVel := Abs(body.rotation - body.prevRotation)
+
+                                if velX > w.sleepingPositionTolerance ||
+                                        velY > w.sleepingPositionTolerance ||
+                                        angularVel > w.sleepingRotationTolerance {
+                                        islandNeedsAwake = true
+                                        break
+                                }
+                        } else {
+                                // Soft body: check per-particle movement.
+                                hasMovingParticles := false
+                                for _, mesh := range body.meshes {
+                                        for _, particle := range mesh.particles {
+                                                velX := Abs(particle.GlobalPosition().X - particle.PreviousGlobalPosition().X)
+                                                velY := Abs(particle.GlobalPosition().Y - particle.PreviousGlobalPosition().Y)
+                                                if velX > w.sleepingPositionTolerance ||
+                                                        velY > w.sleepingPositionTolerance {
+                                                        hasMovingParticles = true
+                                                        break
+                                                }
+                                        }
+                                        if hasMovingParticles {
+                                                break
+                                        }
+                                }
+                                if hasMovingParticles {
+                                        islandNeedsAwake = true
+                                        break
+                                }
+                        }
+                }
+
+                if !islandNeedsAwake {
+                        bodiesCanSleep := true
+                        for _, body := range island {
+                                body.fixedVelocityTick += 1
+                                body.fixedAngularTick += 1
+                                if body.fixedVelocityTick < 120 {
+                                        bodiesCanSleep = false
+                                }
+                        }
+                        if bodiesCanSleep {
+                                for _, body := range island {
+                                        body.isSleeping = true
+                                        if body.bodyType == BodyTypeRigid {
+                                                body.prevPosition = body.position
+                                                body.prevRotation = body.rotation
+                                        } else {
+                                                // Soft body: snap each particle's prevGlobalPosition.
+                                                for _, mesh := range body.meshes {
+                                                        for _, particle := range mesh.particles {
+                                                                particle.SetPreviousGlobalPosition(particle.GlobalPosition())
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                } else {
+                        for _, body := range island {
+                                body.fixedVelocityTick = 0
+                                body.fixedAngularTick = 0
+                                body.isSleeping = false
+                        }
+                }
+        }
+}
+
+// generateIslands builds collision islands via DFS over AABB-overlapping
+// body pairs. Static and disabled bodies are not included as island seeds
+// (but static bodies CAN be visited as connectivity bridges — matches C++
+// CreateIslands which skips static at the entry point but traverses through
+// them). Faithful port of qworld.cpp:1096-1124 + 1070-1093.
+func (w *World) generateIslands() [][]*Body {
+        n := len(w.bodies)
+        visited := make([]bool, n)
+
+        var islands [][]*Body
+
+        for i := 0; i < n; i++ {
+                body := w.bodies[i]
+                if !body.enabled {
+                        continue
+                }
+                if body.mode == BodyModeStatic {
+                        continue
+                }
+                if visited[i] {
+                        continue
+                }
+                var island []*Body
+                w.createIsland(i, &island, visited)
+                islands = append(islands, island)
+        }
+        return islands
+}
+
+// createIsland performs DFS from bodyIndex, adding all connected non-static
+// bodies to the island. Matches qworld.cpp:1070-1093.
+func (w *World) createIsland(bodyIndex int, island *[]*Body, visited []bool) {
+        if visited[bodyIndex] {
+                return
+        }
+        body := w.bodies[bodyIndex]
+        if !body.enabled {
+                return
+        }
+        if body.mode == BodyModeStatic {
+                return
+        }
+
+        visited[bodyIndex] = true
+        *island = append(*island, body)
+
+        // Search other AABB-overlapping bodies.
+        for i, other := range w.bodies {
+                if body == other {
+                        continue
+                }
+                if !body.aabb.IsCollidingWith(other.aabb) {
+                        continue
+                }
+                if !CanCollide(body, other, true) {
+                        continue
+                }
+                w.createIsland(i, island, visited)
+        }
+}
+
 // solveSoftBodySelfCollisions handles particle self-collisions within
 // each soft body. Matches the self-collision section of QWorld::Update
 // at qworld.cpp:237-295.
@@ -824,7 +1009,7 @@ func (w *World) solveSoftBodySelfCollisions() {
                                 cbA := meshA.CollisionBehavior()
                                 cbB := meshB.CollisionBehavior()
                                 if cbA == CollisionPolyline && cbB == CollisionPolyline && ma != mb {
-                                        polyContacts := polylineAndPolyline(meshA.polygon, meshB.polygon, w.contactPool)
+                                        polyContacts := polylineAndPolyline(meshA.polygon, meshB.polygon, w.contactPool, w)
                                         if len(polyContacts) > 0 {
                                                 m := Manifold{
                                                         bodyA:    body,

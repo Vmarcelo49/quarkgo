@@ -116,8 +116,9 @@ func (m *Manifold) getRelativeVelocity(contact *Contact, rRef, rInc Vec2) Vec2 {
 // Solve applies position correction to resolve overlaps.
 // Faithful port of QManifold::Solve in qmanifold.cpp:108-343.
 func (m *Manifold) Solve() {
-        // Dispatch area body events (always, regardless of isCollisionOneSide)
-        m.dispatchAreaBodyEvents()
+        // Area-body events are dispatched per-contact inside the loop (matches
+        // qmanifold.cpp:187-199 + 229-230). The pre-loop dispatchAreaBodyEvents()
+        // call has been removed because it lacked the cancelSolving/continue guard.
 
         // NOTE: C++ does NOT return early when isCollisionOneSide is true.
         // It continues solving but skips mass-weighting. The CanGiveCollisionResponseTo
@@ -140,7 +141,9 @@ func (m *Manifold) Solve() {
                         continue
                 }
 
-                // Scale penetration
+                // Scale penetration (mutates contact.Penetration to match C++ qmanifold.cpp:132-138).
+                // The mutated value is later read by SolveFrictionAndVelocities -> ComputeFriction
+                // as the Coulomb threshold `|jt| < penetration * staticFriction`.
                 penetration := contact.Penetration
                 if betweenRigidBodies {
                         penetration *= 0.9
@@ -150,14 +153,7 @@ func (m *Manifold) Solve() {
                 if penetration < 0 {
                         penetration = 0
                 }
-		// Cap penetration to prevent extreme forces from deep penetration
-		maxPen := float32(20.0)
-		if contact.Particle != nil {
-			r := contact.Particle.Radius()
-			if r > 1 { maxPen = r * 3 }
-		}
-		if penetration > maxPen { penetration = maxPen }
-
+                contact.Penetration = penetration
 
                 // Response force
                 responseForce := contact.Normal.Mul(penetration)
@@ -193,6 +189,28 @@ func (m *Manifold) Solve() {
                 // Cache linear relative velocity for friction (first contact only)
                 if i == 0 {
                         m.linearRelVel = m.getRelativeVelocity(contact, rRef, rInc)
+                }
+
+                // Area-body sensors: register the overlap and skip ALL force application.
+                // Matches qmanifold.cpp:187-199 + 229-230 — area bodies are pure sensors,
+                // they must not apply position correction or friction.
+                if referenceBody.bodyType == BodyTypeArea {
+                        if ab := asAreaBody(referenceBody); ab != nil {
+                                ab.addCollidedBody(incidentBody)
+                        }
+                        // Solved=false ensures SolveFrictionAndVelocities
+                        // SKIPS this contact (no friction on sensor bodies).
+                        // Matches C++ cancelSolving=true; continue which leaves
+                        // contact->solved at its initial false value.
+                        contact.Solved = false
+                        continue
+                }
+                if incidentBody.bodyType == BodyTypeArea {
+                        if ab := asAreaBody(incidentBody); ab != nil {
+                                ab.addCollidedBody(referenceBody)
+                        }
+                        contact.Solved = false
+                        continue
                 }
 
                 // Dispatch collision events
@@ -235,6 +253,57 @@ func (m *Manifold) Solve() {
                         continue
                 }
 
+                // Lazy particle handling (one-way platforms / pass-through).
+                // Faithful port of qmanifold.cpp:254-287, 307, 322, 333-334.
+                //
+                // A lazy particle only collides ONCE per body-pair. The first
+                // contact registers the body in oneTimeCollidedBodies; subsequent
+                // contacts with the same body are skipped. This implements
+                // one-way platforms: a body falling onto a lazy particle from
+                // above collides once, then passes through if it tries to come
+                // back up.
+                incidentParticleIsLazy := false
+                referenceParticlesAreLazy := false
+                if contact.Particle != nil && contact.Particle.IsLazy() {
+                        contact.Particle.addOneTimeCollision(referenceBody)
+                        incidentParticleIsLazy = true
+                        m.isCollisionOneSide = true
+                }
+                for _, rp := range contact.ReferenceParticles {
+                        if rp != nil && rp.IsLazy() {
+                                rp.addOneTimeCollision(incidentBody)
+                                m.isCollisionOneSide = true
+                                referenceParticlesAreLazy = true
+                        }
+                }
+                // Skip if the incident particle has already collided with this reference body.
+                if contact.Particle != nil && contact.Particle.IsLazy() {
+                        if contact.Particle.oneTimeCollidedBodies != nil {
+                                if _, found := contact.Particle.oneTimeCollidedBodies[referenceBody]; found {
+                                        // Already collided before — skip this contact.
+                                        // (C++ uses `continue` here, but we need to mark
+                                        // the contact as not-solved so friction skips it too.)
+                                        contact.Solved = false
+                                        continue
+                                }
+                        }
+                }
+                // Skip if any lazy reference particle has already collided with the incident body.
+                for _, rp := range contact.ReferenceParticles {
+                        if rp != nil && rp.IsLazy() {
+                                if rp.oneTimeCollidedBodies != nil {
+                                        if _, found := rp.oneTimeCollidedBodies[incidentBody]; found {
+                                                contact.Solved = false
+                                                referenceParticlesAreLazy = true // ensure skip-below
+                                                break
+                                        }
+                                }
+                        }
+                }
+                if referenceParticlesAreLazy {
+                        continue
+                }
+
                 // Compute response forces
                 refResponseForce := responseForce.Neg()
                 incResponseForce := responseForce
@@ -247,8 +316,11 @@ func (m *Manifold) Solve() {
                         incResponseForce = incResponseForce.Mul(referenceBody.Mass() * m.invMass)
                 }
 
-                // Apply force to reference body (the polygon that was hit)
-                if incidentBody.CanGiveCollisionResponseTo(referenceBody) {
+                // Apply force to reference body (the polygon that was hit).
+                // Gate: skip if the incident particle is lazy (one-way: incident
+                // passes through, only reference gets force if it's the lazy side
+                // — wait, C++ gates reference-force by !incidentParticleIsLazy).
+                if !incidentParticleIsLazy && incidentBody.CanGiveCollisionResponseTo(referenceBody) {
                         contact.Solved = true
                         if referenceBody.bodyType == BodyTypeRigid {
                                 if rb := asRigidBody(referenceBody); rb != nil {
@@ -268,8 +340,9 @@ func (m *Manifold) Solve() {
                         }
                 }
 
-                // Apply force to incident body (the penetrating particle)
-                if referenceBody.CanGiveCollisionResponseTo(incidentBody) {
+                // Apply force to incident body (the penetrating particle).
+                // Gate: skip if any reference particle is lazy.
+                if !referenceParticlesAreLazy && referenceBody.CanGiveCollisionResponseTo(incidentBody) {
                         contact.Solved = true
                         if incidentBody.bodyType == BodyTypeRigid {
                                 if rb := asRigidBody(incidentBody); rb != nil {
@@ -280,6 +353,12 @@ func (m *Manifold) Solve() {
                                         contact.Particle.ApplyForce(incResponseForce)
                                 }
                         }
+                }
+
+                // If either side is lazy, force Solved=false so friction skips it.
+                // Matches qmanifold.cpp:333-334.
+                if incidentParticleIsLazy || referenceParticlesAreLazy {
+                        contact.Solved = false
                 }
 
                 // Debug gizmo

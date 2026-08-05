@@ -37,9 +37,7 @@ func TestSoftBodyFallsUnderGravity(t *testing.T) {
 
 // TestSoftBodyRestsOnFloor verifies that a soft body falls and rests on
 // a static floor. The particles should not pass through.
-func TestSoftBodyRestsOnFloor_Skip(t *testing.T) {
-	t.Skip("known issue with polyline collision on thick floors")
-//func TestSoftBodyRestsOnFloor_orig(t *testing.T) {
+func TestSoftBodyRestsOnFloor(t *testing.T) {
         world := NewWorld(
                 WithGravity(Vec2{X: 0, Y: 0.1}), // lower gravity to prevent tunneling
                 WithIterations(4),
@@ -64,7 +62,7 @@ func TestSoftBodyRestsOnFloor_Skip(t *testing.T) {
         }
 
         // Check that no particle is below the floor top (400)
-        floorTop := float32(486.0)
+        floorTop := float32(400.0)
         mesh := sb.Meshes()[0]
         maxY := float32(0)
         for i, p := range mesh.Particles() {
@@ -72,7 +70,7 @@ func TestSoftBodyRestsOnFloor_Skip(t *testing.T) {
                 if gp.Y > maxY {
                         maxY = gp.Y
                 }
-                if gp.Y > floorTop+50 {
+                if gp.Y > floorTop+25 {
                         t.Errorf("particle %d passed through floor: Y=%f (floor top=%f)",
                                 i, gp.Y, floorTop)
                 }

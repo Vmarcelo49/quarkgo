@@ -145,17 +145,46 @@ func AngleToUnitVector(radianAngle float32) Vec2 {
 //   cosA      = dot / totalLen
 //   sinA      = perpDot / totalLen
 //   aSin      = asin(clamp(sinA, -1, 1))
-//   return    = -atan2(aSin, cosA)
+// AngleBetweenTwoVectors computes the signed angle from referenceVector to vector.
+// Matches QVector::AngleBetweenTwoVectors in qvector.cpp:37-69 exactly.
 //
-// Because atan2(sinA, cosA) == atan2(perpDot, dot) (the totalLen ratio cancels),
-// the result simplifies to: -atan2(perpDot, dot).
+// C++ algorithm:
+//   totalLength = vector.Length() + referenceVector.Length()
+//   refPerp    = referenceVector.Perpendicular()
+//   dot        = vector · referenceVector
+//   perpDot    = vector · refPerp
+//   cosA = totalLength != 0 ? dot/totalLength : 0
+//   sinA = totalLength != 0 ? perpDot/totalLength : 0
+//   aSin = clamp(asin(sinA), -1, 1)
+//   return -atan2(aSin, cosA)
+//
+// NOTE: The C++ formula divides by the SUM of lengths (not product), then
+// applies asin. This is non-standard but is the reference behavior — it must
+// be reproduced verbatim because AngleConstraint, polygon corner-angle
+// tracking, and platformer slope detection all accumulate this value.
 func AngleBetweenTwoVectors(vector, referenceVector Vec2) float32 {
+        totalLength := vector.Length() + referenceVector.Length()
+        refPerp := referenceVector.Perpendicular()
         dot := vector.Dot(referenceVector)
-        // perpDot = vector · referenceVector.Perpendicular()
-        // Perpendicular() returns (Y, -X), so:
-        //   perpDot = vector.X*refY + vector.Y*(-refX) = vector.X*refY - vector.Y*refX
-        perpDot := vector.X*referenceVector.Y - vector.Y*referenceVector.X
-        return -Atan2(perpDot, dot)
+        perpDot := vector.Dot(refPerp)
+
+        cosA := float32(0.0)
+        sinA := float32(0.0)
+        if totalLength != 0 {
+                cosA = dot / totalLength
+                sinA = perpDot / totalLength
+        }
+
+        var aSin float32
+        if sinA < -1.0 {
+                aSin = Asin(-1.0)
+        } else if sinA > 1.0 {
+                aSin = Asin(1.0)
+        } else {
+                aSin = Asin(sinA)
+        }
+
+        return -Atan2(aSin, cosA)
 }
 
 // Side enumerates the four cardinal directions, used by GetVectorSide.

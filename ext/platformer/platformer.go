@@ -432,7 +432,11 @@ func (pb *PlatformerBody) PostUpdate() {
         // --- Moving platform forces ---
         if pb.lastMovableFloor != nil {
                 floorVelocity := pb.lastMovableFloor.Position().Sub(pb.lastMovableFloor.PreviousPosition())
-                pb.AddPosition(floorVelocity, false)
+                // Sync prevPosition to zero implicit velocity (matches qplatformerbody.cpp:426
+                // which uses the default withPreviousPosition=true). Without this, the
+                // platformer's per-frame movement leaks into velRef on the first solver
+                // iteration and corrupts static-friction forces on contacted dynamic bodies.
+                pb.AddPosition(floorVelocity, true)
 
                 // Check if still on the moving floor
                 tempPosition = pb.Position()
@@ -610,7 +614,8 @@ func (pb *PlatformerBody) PostUpdate() {
         } else if pb.onCeiling && pb.verticalVelocity.Dot(pb.upDirection) > 0 {
                 pb.verticalVelocity = physics.Vec2Zero()
         } else {
-                pb.AddPosition(pb.verticalVelocity, false)
+                // Sync prevPosition (matches qplatformerbody.cpp:579 default true).
+                pb.AddPosition(pb.verticalVelocity, true)
                 pb.verticalVelocity = pb.verticalVelocity.Add(gravityAmount)
         }
 
@@ -647,7 +652,8 @@ func (pb *PlatformerBody) PostUpdate() {
                         }
                 }
 
-                pb.AddPosition(walkVector, false)
+                // Sync prevPosition (matches qplatformerbody.cpp:621 default true).
+                pb.AddPosition(walkVector, true)
         }
 
         // Wall collision tests

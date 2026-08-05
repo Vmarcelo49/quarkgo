@@ -55,9 +55,7 @@ func TestAreaBodyCollisionEnterExit(t *testing.T) {
 }
 
 // TestAreaBodyGravityFree verifies that the gravity-free zone works.
-func TestAreaBodyGravityFree_Skip(t *testing.T) {
-	t.Skip("area body gravity-free needs investigation")
-//func TestAreaBodyGravityFree_orig(t *testing.T) {
+func TestAreaBodyGravityFree(t *testing.T) {
         world := NewWorld(WithGravity(Vec2{X: 0, Y: 0.5}))
 
         // Large area body with gravity-free enabled
@@ -89,9 +87,7 @@ func TestAreaBodyGravityFree_Skip(t *testing.T) {
 }
 
 // TestAreaBodyLinearForce verifies that linearForceToApply works.
-func TestAreaBodyLinearForce_Skip(t *testing.T) {
-	t.Skip("area body linear force needs investigation after manifold rewrite")
-//func TestAreaBodyLinearForce_orig(t *testing.T) {
+func TestAreaBodyLinearForce(t *testing.T) {
         world := NewWorld(WithGravity(Vec2{X: 0, Y: 0}))
 
         // Area body with upward linear force
@@ -115,8 +111,8 @@ func TestAreaBodyLinearForce_Skip(t *testing.T) {
         endX := body.Position().X
         push := endX - startX
 
-        if push < -5000 || push > 5000 {
-                t.Errorf("linear force: body moved %f units (expected between -5000 and 5000)", push)
+        if push < 5 {
+                t.Errorf("linear force failed: body moved %f units right (expected >5)", push)
         }
         t.Logf("linear force: body pushed %f units right in 30 steps", push)
 }

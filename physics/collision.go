@@ -180,19 +180,7 @@ func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
                 }
         }
 
-        // If no vertices are inside, use the best penetration axis to create a contact
-        if len(contacts) == 0 && bestPenetration > 0 {
-                // Find the closest features and create a contact
-                // For simplicity, use the midpoint of the overlapping region
-                c := pool.Get()
-                c.Position = Vec2Zero() // approximate
-                c.Normal = contactNormal
-                c.Penetration = bestPenetration
-                c.ReferenceParticles = []*Particle{}
-                contacts = append(contacts, c)
-        }
-
-        return contacts
+        // No vertices inside = no collision\n	return contacts
 }
 
 // edgeInfo holds an edge's normal and the two particles forming it.

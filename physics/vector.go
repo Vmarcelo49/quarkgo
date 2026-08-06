@@ -1,8 +1,6 @@
 package physics
 
 import (
-	"math"
-
 	"github.com/chewxy/math32"
 )
 

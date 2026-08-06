@@ -10,8 +10,6 @@ import "slices"
 // broadphase_internal.go). QSpatialHashing (ext/spatialhash) is an
 // alternative. Users can provide custom implementations via
 // World.SetBroadphase.
-//
-// Matches QBroadPhase in qbroadphase.h.
 type BroadPhase interface {
 	// Insert adds a body to the broadphase index.
 	Insert(b *Body)
@@ -30,7 +28,6 @@ type BroadPhase interface {
 }
 
 // SAPBroadPhase is the default Sweep-and-Prune implementation.
-// Matches the C++ built-in SAP at qworld.cpp:159-194.
 type SAPBroadPhase struct {
 	bodies []*Body
 }

@@ -7,7 +7,7 @@ import (
 
 // Concurrency configuration for the World.
 //
-// Phase 5 adds optional parallel narrowphase: when enabled, collision
+// When enabled, collision
 // detection (GetCollisions) for candidate pairs runs across multiple
 // goroutines. The Solve phase stays serial because manifolds mutate body
 // state (positions, velocities).
@@ -22,7 +22,7 @@ import (
 // ConcurrencyConfig controls parallel narrowphase execution.
 type ConcurrencyConfig struct {
 	// Enabled controls whether parallel narrowphase is active.
-	// Default: false (single-threaded, matching C++ engine).
+	// Default: false (single-threaded, matching C++ original engine).
 	Enabled bool
 
 	// NumWorkers is the number of goroutines to use for parallel narrowphase.

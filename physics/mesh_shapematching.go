@@ -7,7 +7,6 @@ import "github.com/chewxy/math32"
 
 // GetAveragePositionAndRotation computes the average position and rotation
 // of a set of particles. Used by shape matching to find the target transform.
-// Matches QMesh::GetAveragePositionAndRotation in qmesh.cpp.
 //
 // The rotation is computed by finding the angle that best aligns the
 // current particle positions with their local (rest) positions.
@@ -40,7 +39,7 @@ func GetAveragePositionAndRotation(particles []*Particle) (Vec2, float32) {
 
 // GetMatchingParticlePositions computes the target positions for shape matching.
 // Each particle's LOCAL position is rotated by -targetRotation and translated
-// to targetPosition. Matches QMesh::GetMatchingParticlePositions in qmesh.cpp.
+// to targetPosition.
 func GetMatchingParticlePositions(particles []*Particle, targetPosition Vec2, targetRotation float32) []Vec2 {
 	if len(particles) == 0 {
 		return nil
@@ -63,8 +62,7 @@ func GetMatchingParticlePositions(particles []*Particle, targetPosition Vec2, ta
 }
 
 // ApplyAngleConstraintsToPolygon applies per-vertex angle constraints to
-// the polygon. Faithful port of QMesh::ApplyAngleConstraintsToPolygon
-// (qmesh.cpp:314-439).
+// the polygon.
 //
 // Algorithm:
 //  1. Intersection test: check if the polygon is self-intersecting via

@@ -3,7 +3,6 @@ package physics
 import "github.com/chewxy/math32"
 
 // RigidBody is a non-deformable solid body simulated with Verlet integration.
-// Matches QRigidBody in qrigidbody.h, qrigidbody.cpp.
 //
 // Verlet integration: velocity is implicit, computed as
 // (position - prevPosition). Forces are applied by translating position
@@ -26,7 +25,6 @@ type RigidBody struct {
 }
 
 // NewRigidBody constructs a RigidBody with default values.
-// Matches QRigidBody::QRigidBody in qrigidbody.cpp:34-38.
 func NewRigidBody() *RigidBody {
 	rb := &RigidBody{}
 	rb.bodyType = BodyTypeRigid
@@ -125,7 +123,6 @@ func (rb *RigidBody) SetPositionAndCollide(v Vec2, withPreviousPosition bool) *R
 
 // ApplyForce applies an immediate force at an offset. Translates the body
 // by `force` and rotates by r · force.Perpendicular() / inertia.
-// Matches QRigidBody::ApplyForce(force, r, updateMeshTransforms) in qrigidbody.cpp:50-65.
 //
 // Safe before the physics step (e.g., in OnPreStep). Calling after the
 // step may break the simulation — use SetForce/AddForce for next-step-safe.
@@ -144,7 +141,6 @@ func (rb *RigidBody) ApplyForceAt(force, r Vec2, updateMeshTransforms bool) *Rig
 }
 
 // ApplyForce applies an immediate force at the body's center (no torque).
-// Matches QRigidBody::ApplyForce(force) in qrigidbody.cpp:79-82.
 func (rb *RigidBody) ApplyForce(force Vec2) *RigidBody {
 	return rb.ApplyForceAt(force, Vec2Zero(), true)
 }
@@ -167,7 +163,6 @@ func (rb *RigidBody) AsBody() *Body { return &rb.Body }
 // --- Update (Verlet integration) ---
 
 // Update performs Verlet integration for one step.
-// Matches QRigidBody::Update in qrigidbody.cpp:114-188.
 //
 // CRITICAL: This method preserves the C++ float-drift clamp at lines
 // 146-153 — velocity components < 0.01 are zeroed to fight float drift.

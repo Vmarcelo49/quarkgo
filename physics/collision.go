@@ -3,8 +3,7 @@ package physics
 import "github.com/chewxy/math32"
 
 // GetCollisions runs narrowphase collision detection between two bodies
-// and returns a list of contacts. Matches QWorld::GetCollisions (static)
-// in qworld.cpp:927-1067.
+// and returns a list of contacts.
 //
 // Dispatches by the collision behavior of each body's meshes:
 //   - Polygons × Polygons → PolygonAndPolygon
@@ -46,7 +45,7 @@ func GetCollisions(bodyA, bodyB *Body, pool *ContactPool, applyHotSolvers bool) 
 				contacts = append(contacts, circleVsCircle(meshA, meshB, pool, bodyA, bodyB)...)
 			case cbA == CollisionPolyline && cbB == CollisionPolygons:
 				// Soft body (polyline) vs rigid body (polygon).
-				// Matches qworld.cpp:1001-1030 — calls CircleAndPolygon
+				// Calls CircleAndPolygon
 				// (polyline particles as circles vs polygon) FIRST,
 				// then PolylineAndPolygon (segment-vs-bisector ray)
 				// as a secondary detector for edges crossing the
@@ -101,7 +100,6 @@ func GetCollisions(bodyA, bodyB *Body, pool *ContactPool, applyHotSolvers bool) 
 			case cbA == CollisionPolyline && cbB == CollisionPolyline:
 				// Soft body vs soft body — test both directions.
 				// Only runs when both bodies are MASS_SPRING (soft bodies).
-				// Matches qworld.cpp:1032-1043.
 				if bodyA.bodyType == BodyTypeSoft && bodyB.bodyType == BodyTypeSoft {
 					contacts = append(contacts, polylineAndPolyline(meshA.polygon, meshB.polygon, pool, bodyA.world)...)
 					contacts = append(contacts, polylineAndPolyline(meshB.polygon, meshA.polygon, pool, bodyA.world)...)
@@ -248,7 +246,8 @@ func testVertexVsPolygon(vertex *Particle, poly []*Particle, polyPositions []Vec
 	var penetration float32
 	var refParticles []*Particle
 
-	if voronoiRegion == 0 {
+	switch voronoiRegion {
+	case 0:
 		if nearestPolygonParticle == nil {
 			return nil
 		}
@@ -267,7 +266,7 @@ func testVertexVsPolygon(vertex *Particle, poly []*Particle, polyPositions []Vec
 				return nil
 			}
 		}
-	} else if voronoiRegion == 1 {
+	case 1:
 		// Edge region
 		if nearestEdgePenetration < cRadius {
 			penetration = cRadius - nearestEdgePenetration
@@ -276,7 +275,7 @@ func testVertexVsPolygon(vertex *Particle, poly []*Particle, polyPositions []Vec
 		} else {
 			return nil
 		}
-	} else {
+	default:
 		// Inside region (voronoiRegion == 2)
 		penetration = cRadius - nearestEdgePenetration
 		normal = nearestEdgeNormal
@@ -327,6 +326,7 @@ func deduplicateContacts(contacts []*Contact) []*Contact {
 
 // findEdgeEdgeContacts finds edge-edge intersection contacts between two
 // polygons. Used when no vertex is inside the other polygon (edge-edge contact).
+// TODO: Check why this is unused, where in the c++ code this was ported from.
 func findEdgeEdgeContacts(polyA, polyB []*Particle, pool *ContactPool) []*Contact {
 	var contacts []*Contact
 	nA := len(polyA)
@@ -366,13 +366,13 @@ func findEdgeEdgeContacts(polyA, polyB []*Particle, pool *ContactPool) []*Contac
 // polygonVsPolygon runs SAT + edge clipping between two polygon meshes.
 // Convenience wrapper that delegates to polygonVsPolygonParticles using
 // the meshes' polygon slices.
+// TODO: Check why this is unused, where in the c++ code this was ported from.
 func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
 	return polygonVsPolygonParticles(meshA.polygon, meshB.polygon, pool)
 }
 
 // polygonVsPolygonParticles runs SAT + edge clipping between two particle
-// slices (each representing a convex polygon). Faithful port of
-// QCollision::PolygonAndPolygon (qcollision.cpp:1087-1208).
+// slices (each representing a convex polygon).
 //
 // Algorithm:
 //
@@ -433,7 +433,6 @@ func polygonVsPolygonParticles(particlesA, particlesB []*Particle, pool *Contact
 		incProject := projectPolygon(incPolygon, sNormal)
 
 		// Overlap returns min - other.max (negative when overlapping).
-		// Matches QCollision::Project::Overlap.
 		penetration := refProject.min - incProject.max
 		if penetration >= 0 {
 			// Separating axis found — polygons don't overlap.
@@ -524,6 +523,7 @@ type edgeInfo struct {
 // Assumes CW winding in screen coordinates (Y down).
 // Outward normal = (edge.Y, -edge.X) = Perpendicular() (points LEFT of edge
 // direction in screen coords = away from interior for CW).
+// TODO: Check why this is unused, where in the c++ code this was ported from.
 func polygonEdges(poly []*Particle) []edgeInfo {
 	n := len(poly)
 	edges := make([]edgeInfo, n)
@@ -544,6 +544,7 @@ func polygonEdges(poly []*Particle) []edgeInfo {
 // of a convex polygon, and returns the outward normal of that edge.
 // If the point is inside the polygon, the distance is positive (penetration depth).
 // Assumes CW winding in screen coordinates (Y down).
+// TODO: Check why this is unused, where in the c++ code this was ported from.
 func distanceToPolygon(point Vec2, poly []*Particle) (float32, Vec2) {
 	n := len(poly)
 	bestDepth := float32(-MaxWorldSize)
@@ -576,6 +577,7 @@ func distanceToPolygon(point Vec2, poly []*Particle) (float32, Vec2) {
 //
 // The returned normal points from refPoly toward incidentPoly (i.e., the
 // direction to push incidentPoly away from refPoly).
+// TODO: Check why this is unused, where in the c++ code this was ported from.
 func findMinPenAxis(refPoly, incidentPoly []*Particle) (normal Vec2, penetration float32, edgeIdx int, ok bool) {
 	n := len(refPoly)
 	bestPen := float32(MaxWorldSize)
@@ -663,7 +665,6 @@ type projectResult struct {
 }
 
 // projectPolygon projects a polygon onto an axis (unit normal).
-// Matches QCollision::ProjectToAxis (qcollision.cpp:1237-1259).
 func projectPolygon(poly []*Particle, axis Vec2) projectResult {
 	if len(poly) == 0 {
 		return projectResult{}
@@ -688,6 +689,7 @@ func projectPolygon(poly []*Particle, axis Vec2) projectResult {
 
 // findIncidentEdge finds the edge of poly most anti-parallel to `normal`.
 // Returns the two particles forming that edge.
+// TODO: Check why this is unused, where in the c++ code this was ported from.
 func findIncidentEdge(poly []*Particle, normal Vec2) [2]*Particle {
 	n := len(poly)
 	bestDot := float32(1.0) // we want the most negative dot
@@ -707,7 +709,7 @@ func findIncidentEdge(poly []*Particle, normal Vec2) [2]*Particle {
 }
 
 // clipEdges clips the incident edge against the reference edge and produces
-// contacts. Matches QCollision::ClipContactParticles (qcollision.cpp:1210-1234).
+// contacts.
 //
 // Computes `normal = unit.Perpendicular()` from the reference segment (NOT
 // passed in as a parameter — the C++ algorithm derives the normal from the
@@ -751,7 +753,6 @@ func clipEdges(refParts, incParts [2]*Particle, pool *ContactPool) []*Contact {
 // --- Circle vs Circle ---
 
 // circleVsCircle runs circle-circle collision detection.
-// Matches QCollision::CircleAndCircle in qcollision.cpp:682-806.
 //
 // For each pair of particles (one from each mesh), checks if the distance
 // is less than the sum of radii. Uses sweep-and-prune for efficiency.
@@ -791,7 +792,6 @@ func circleVsCircle(meshA, meshB *Mesh, pool *ContactPool, bodyA, bodyB *Body) [
 				c := pool.Get()
 				c.Particle = pB
 				// Contact position is on the surface of circle A toward B
-				// (matches qcollision.cpp:787 `contactPosition = pA->GetGlobalPosition() + radiusA*normal`).
 				// The previous Go code used `gB` (raw particle B center), which
 				// produced wrong torque arms in the manifold solver for
 				// off-center circle meshes (e.g., a wheel with multiple circles).
@@ -809,12 +809,11 @@ func circleVsCircle(meshA, meshB *Mesh, pool *ContactPool, bodyA, bodyB *Body) [
 // --- Circle vs Polygon ---
 
 // circleVsPolygon runs circle-polygon collision detection.
-// Faithful port of QCollision::CircleAndPolygon (qcollision.cpp:902-1074).
 //
 // Uses Voronoi region classification: for each circle particle, finds the
 // nearest polygon vertex and edge, then classifies as vertex/edge/inside.
 // Applies ParticlePolygonToPolygon first to offset fat polygon particles
-// inward (matches qcollision.cpp:917). Uses PointInPolygonWN for the inside
+// inward. Uses PointInPolygonWN for the inside
 // test so concave polygons are handled correctly.
 func circleVsPolygon(circleMesh, polygonMesh *Mesh, pool *ContactPool) []*Contact {
 	var contacts []*Contact
@@ -825,7 +824,6 @@ func circleVsPolygon(circleMesh, polygonMesh *Mesh, pool *ContactPool) []*Contac
 	n := len(poly)
 
 	// Pre-compute adjusted positions for fat polygon particles.
-	// Matches qcollision.cpp:917 ParticlePolygonToPolygon(polygonParticles).
 	polygonPositions := particlePolygonToPolygon(poly)
 
 	for _, circle := range circleMesh.particles {
@@ -968,6 +966,7 @@ func circleVsPolygon(circleMesh, polygonMesh *Mesh, pool *ContactPool) []*Contac
 // Assumes clockwise winding in screen coordinates (Y down).
 // For CW polygons, the interior is on the LEFT side of each edge,
 // meaning the cross product (edge × toPoint) should be >= 0 for all edges.
+// TODO: Check why this is unused, where in the c++ code this was ported from.
 func pointInPolygon(point Vec2, poly []*Particle) bool {
 	n := len(poly)
 	if n < 3 {
@@ -1009,8 +1008,7 @@ func LineIntersectionLine(d1A, d1B, d2A, d2B Vec2) Vec2 {
 }
 
 // pointInPolygonWN tests whether `point` is inside the polygon (convex or
-// concave) using the winding number algorithm. Faithful port of
-// QCollision::PointInPolygonWN (qcollision.cpp:1369-1409).
+// concave) using the winding number algorithm.
 //
 // Casts a horizontal ray from `point` to +X infinity. For each polygon edge,
 // if the edge crosses the ray's Y range, computes the ray-vs-edge intersection
@@ -1079,10 +1077,7 @@ func pointInPolygonWN(point Vec2, polygon []*Particle) bool {
 // particle. For particles with radius > 0.5, the position is offset inward
 // by `radius * bisectorUnit` so that circle-vs-polygon collisions trigger
 // at the particle surface rather than the particle center.
-// Faithful port of QCollision::ParticlePolygonToPolygon (qcollision.cpp:1261-1283).
-//
-// NOTE: C++ calls GeteBisectorUnitVector with 3 args (default
-// checkPointsAreCCW=false). The Go signature requires the 4th arg explicitly.
+
 func particlePolygonToPolygon(particlePolygon []*Particle) []Vec2 {
 	particlePolygonSize := len(particlePolygon)
 	polygonPositions := make([]Vec2, particlePolygonSize)
@@ -1102,7 +1097,6 @@ func particlePolygonToPolygon(particlePolygon []*Particle) []Vec2 {
 }
 
 // findNearestSideOfPolygon finds the polygon side nearest to `point`.
-// Faithful port of QCollision::FindNearestSideOfPolygon (qcollision.cpp:1285-1333).
 //
 // Parameters:
 //   - checkSideRange: if true, only consider sides where the point's
@@ -1150,8 +1144,7 @@ func findNearestSideOfPolygon(point Vec2, polygonParticles []*Particle, checkSid
 }
 
 // findNearestParticleOfPolygon returns the index of the polygon particle
-// nearest to `particle` (skipping identity). Faithful port of
-// QCollision::FindNearestParticleOfPolygon (qcollision.cpp:1335-1351).
+// nearest to `particle` (skipping identity).
 func findNearestParticleOfPolygon(particle *Particle, polygonParticles []*Particle) int {
 	res := 0
 	minDistance := float32(MaxWorldSize)
@@ -1169,8 +1162,8 @@ func findNearestParticleOfPolygon(particle *Particle, polygonParticles []*Partic
 }
 
 // findExtremeParticleOfAxis returns the index of the polygon particle with
-// the maximum projection on `axisNormal`. Faithful port of
-// QCollision::FindExtremeParticleOfAxis (qcollision.cpp:1353-1367).
+// the maximum projection on `axisNormal`.
+// TODO: Check why this is unused, where in the c++ code this was ported from.
 func findExtremeParticleOfAxis(polygonParticles []*Particle, axisNormal Vec2) int {
 	res := 0
 	maxDistance := -float32(MaxWorldSize)

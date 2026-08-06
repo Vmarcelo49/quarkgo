@@ -1,7 +1,6 @@
 package physics
 
 // Manifold holds collision data between two bodies and resolves it.
-// Faithful port of QManifold in qmanifold.h, qmanifold.cpp.
 //
 // Key C++ conventions:
 //   - bodyA/bodyB are ordered by pointer (smaller first) — NOT reference/incident
@@ -25,7 +24,7 @@ type Manifold struct {
 	linearRelVel       Vec2 // cached relative velocity from first contact
 }
 
-// init computes one-time properties. Matches QManifold constructor.
+// init computes one-time properties.
 func (m *Manifold) init() {
 	// restitution = min(bodyA.restitution, bodyB.restitution)
 	m.restitution = m.bodyA.restitution
@@ -55,7 +54,6 @@ func (m *Manifold) BodyB() *Body         { return m.bodyB }
 func (m *Manifold) Contacts() []*Contact { return m.contacts }
 
 // getRelativeVelocity computes relative velocity at contact point.
-// Matches QManifold::GetRelativeVelocity in qmanifold.cpp:66-102.
 //
 // Returns (velRef + angVelRef * -rRef.Perpendicular()) - (velInc + angVelInc * -rInc.Perpendicular())
 func (m *Manifold) getRelativeVelocity(contact *Contact, rRef, rInc Vec2) Vec2 {
@@ -114,16 +112,10 @@ func (m *Manifold) getRelativeVelocity(contact *Contact, rRef, rInc Vec2) Vec2 {
 }
 
 // Solve applies position correction to resolve overlaps.
-// Faithful port of QManifold::Solve in qmanifold.cpp:108-343.
 func (m *Manifold) Solve() {
 	// Area-body events are dispatched per-contact inside the loop (matches
 	// qmanifold.cpp:187-199 + 229-230). The pre-loop dispatchAreaBodyEvents()
 	// call has been removed because it lacked the cancelSolving/continue guard.
-
-	// NOTE: C++ does NOT return early when isCollisionOneSide is true.
-	// It continues solving but skips mass-weighting. The CanGiveCollisionResponseTo
-	// checks prevent forces from being applied to bodies that can't receive them
-	// (e.g., static bodies). So isCollisionOneSide only affects the mass-weighting.
 
 	// Determine body type flags
 	betweenRigidBodies := m.bodyA.bodyType == BodyTypeRigid && m.bodyB.bodyType == BodyTypeRigid
@@ -192,7 +184,7 @@ func (m *Manifold) Solve() {
 		}
 
 		// Area-body sensors: register the overlap and skip ALL force application.
-		// Matches qmanifold.cpp:187-199 + 229-230 — area bodies are pure sensors,
+		// area bodies are pure sensors,
 		// they must not apply position correction or friction.
 		if referenceBody.bodyType == BodyTypeArea {
 			if ab := asAreaBody(referenceBody); ab != nil {
@@ -200,8 +192,6 @@ func (m *Manifold) Solve() {
 			}
 			// Solved=false ensures SolveFrictionAndVelocities
 			// SKIPS this contact (no friction on sensor bodies).
-			// Matches C++ cancelSolving=true; continue which leaves
-			// contact->solved at its initial false value.
 			contact.Solved = false
 			continue
 		}
@@ -254,7 +244,6 @@ func (m *Manifold) Solve() {
 		}
 
 		// Lazy particle handling (one-way platforms / pass-through).
-		// Faithful port of qmanifold.cpp:254-287, 307, 322, 333-334.
 		//
 		// A lazy particle only collides ONCE per body-pair. The first
 		// contact registers the body in oneTimeCollidedBodies; subsequent
@@ -316,17 +305,14 @@ func (m *Manifold) Solve() {
 			incResponseForce = incResponseForce.Mul(referenceBody.Mass() * m.invMass)
 		}
 
-		// Apply force to reference body (the polygon that was hit).
-		// Gate: skip if the incident particle is lazy (one-way: incident
-		// passes through, only reference gets force if it's the lazy side
-		// — wait, C++ gates reference-force by !incidentParticleIsLazy).
 		if !incidentParticleIsLazy && incidentBody.CanGiveCollisionResponseTo(referenceBody) {
 			contact.Solved = true
-			if referenceBody.bodyType == BodyTypeRigid {
+			switch referenceBody.bodyType {
+			case BodyTypeRigid:
 				if rb := asRigidBody(referenceBody); rb != nil {
 					rb.ApplyForceAt(refResponseForce, rRef, true)
 				}
-			} else if referenceBody.bodyType == BodyTypeSoft {
+			case BodyTypeSoft:
 				if len(contact.ReferenceParticles) == 2 {
 					ApplyForceToParticleSegment(
 						contact.ReferenceParticles[0],
@@ -344,11 +330,12 @@ func (m *Manifold) Solve() {
 		// Gate: skip if any reference particle is lazy.
 		if !referenceParticlesAreLazy && referenceBody.CanGiveCollisionResponseTo(incidentBody) {
 			contact.Solved = true
-			if incidentBody.bodyType == BodyTypeRigid {
+			switch incidentBody.bodyType {
+			case BodyTypeRigid:
 				if rb := asRigidBody(incidentBody); rb != nil {
 					rb.ApplyForceAt(incResponseForce, rInc, true)
 				}
-			} else if incidentBody.bodyType == BodyTypeSoft {
+			case BodyTypeSoft:
 				if contact.Particle != nil {
 					contact.Particle.ApplyForce(incResponseForce)
 				}
@@ -373,7 +360,6 @@ func (m *Manifold) Solve() {
 }
 
 // SolveFrictionAndVelocities applies restitution and friction.
-// Faithful port of QManifold::SolveFrictionAndVelocities in qmanifold.cpp:345-470.
 func (m *Manifold) SolveFrictionAndVelocities() {
 	// Don't apply friction to kinematic and static body pairs
 	isBodyADynamic := !m.bodyA.isKinematic && m.bodyA.mode != BodyModeStatic
@@ -500,6 +486,7 @@ func (b *Body) onCollision(info CollisionInfo) bool {
 }
 
 // dispatchAreaBodyEvents notifies area bodies of enter/exit events.
+// TODO: Check why this is unused, where in the c++ code this was ported from.
 func (m *Manifold) dispatchAreaBodyEvents() {
 	if m.bodyA.bodyType == BodyTypeArea {
 		if ab := asAreaBody(m.bodyA); ab != nil {

@@ -1,6 +1,10 @@
 package physics
 
-import "github.com/chewxy/math32"
+import (
+	"math"
+
+	"github.com/chewxy/math32"
+)
 
 // Vec2 is a 2D float32 vector. Matches QVector in qvector.h.
 //

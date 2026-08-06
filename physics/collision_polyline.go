@@ -3,12 +3,9 @@ package physics
 import "github.com/chewxy/math32"
 
 // Polyline collision methods for soft bodies.
-// Faithful port of PolylineAndPolygon, PolylineAndPolyline, CircleAndPolyline2,
-// and CircleAndCircleSelf in qcollision.cpp.
 
 // polylineAndPolygon checks collisions between a polyline (deformable rope)
-// and a solid polygon. Faithful port of QCollision::PolylineAndPolygon
-// (qcollision.cpp:43-201).
+// and a solid polygon.
 //
 // Algorithm:
 //
@@ -170,7 +167,6 @@ func polylineAndPolygon(polylineParticles, polygonParticles []*Particle, pool *C
 }
 
 // polylineAndPolyline checks collisions between two polylines.
-// Faithful port of QCollision::PolylineAndPolyline (qcollision.cpp:203-593).
 //
 // Algorithm:
 //
@@ -547,8 +543,7 @@ func computePolylineAABB(polyline []*Particle) AABB {
 }
 
 // circleAndPolyline2 checks collisions between circle particles and a
-// polyline (soft body). Faithful port of QCollision::CircleAndPolyline2
-// (qcollision.cpp:595-680).
+// polyline (soft body).
 //
 // For each circle particle:
 //   - If INSIDE the polyline (via PointInPolygonWN):

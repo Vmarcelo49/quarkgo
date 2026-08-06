@@ -41,7 +41,6 @@ type SoftBody struct {
 }
 
 // NewSoftBody constructs a SoftBody with default values.
-// Matches QSoftBody::QSoftBody in qsoftbody.cpp:68-72.
 func NewSoftBody() *SoftBody {
 	sb := &SoftBody{
 		rigidity:               1.0,
@@ -242,7 +241,6 @@ func (b *Body) TotalPolygonsArea() float32 {
 // --- Update (Verlet integration per particle) ---
 
 // Update performs per-particle Verlet integration.
-// Matches QSoftBody::Update in qsoftbody.cpp:93-185.
 func (sb *SoftBody) Update() {
 	// Call base Body.Update (resets lazy collisions)
 	sb.Body.Update()
@@ -336,7 +334,6 @@ func (sb *SoftBody) ApplyForce(force Vec2) *SoftBody {
 }
 
 // PreserveAreas applies the area-preserving pressure force.
-// Matches QSoftBody::PreserveAreas in qsoftbody.cpp:193-280.
 //
 // Computes the difference between the target area and the current polygon
 // area, then pushes each polygon vertex along its edge normal to restore
@@ -359,7 +356,7 @@ func (sb *SoftBody) PreserveAreas() {
 
 		currentMeshesArea := mesh.polygonArea(false)
 
-		// Clamp area to ±5× target to prevent blowup (qsoftbody.cpp:218-223)
+		// Clamp area to ±5× target to prevent blowup
 		if currentMeshesArea < -sb.targetPreservationArea*5 {
 			currentMeshesArea = -sb.targetPreservationArea * 5
 		}
@@ -415,7 +412,6 @@ func (sb *SoftBody) PreserveAreas() {
 }
 
 // ApplyShapeMatching pulls particles toward their rest shape.
-// Matches QSoftBody::ApplyShapeMatching in qsoftbody.cpp:286-345.
 //
 // Computes the average position and rotation of the current particles,
 // then computes target positions by rotating the rest (local) positions

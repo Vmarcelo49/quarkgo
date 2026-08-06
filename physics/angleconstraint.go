@@ -2,8 +2,7 @@ package physics
 
 import "github.com/chewxy/math32"
 
-// AngleConstraint is a 3-particle angle constraint. Matches QAngleConstraint
-// in qangleconstraint.h, qangleconstraint.cpp.
+// AngleConstraint is a 3-particle angle constraint.
 //
 // Constrains the angle at pB (between rays pB→pA and pB→pC) to stay
 // within [minAngle, maxAngle]. When the angle exceeds the bounds, forces
@@ -32,7 +31,6 @@ type AngleConstraint struct {
 
 // NewAngleConstraint creates an angle constraint between three particles,
 // auto-calculating min/max angles from the current local positions.
-// Matches QAngleConstraint::QAngleConstraint(pA, pB, pC, angleRange).
 func NewAngleConstraint(pA, pB, pC *Particle, angleRange float32) *AngleConstraint {
 	ac := &AngleConstraint{
 		pA:                pA,
@@ -68,7 +66,6 @@ func NewAngleConstraintWithBounds(pA, pB, pC *Particle, minAngle, maxAngle float
 
 // AngleOfParticlesWithLocalPositions computes the angle at pB formed by
 // rays pB→pA and pB→pC, using LOCAL positions. Returns a value in [0, 2π).
-// Matches QAngleConstraint::GetAngleOfParticlesWithLocalPositions.
 func AngleOfParticlesWithLocalPositions(pA, pB, pC *Particle) float32 {
 	toPrev := pA.Position().Sub(pB.Position())
 	toNext := pC.Position().Sub(pB.Position())
@@ -111,7 +108,6 @@ func (ac *AngleConstraint) SetRigidity(r float32) *AngleConstraint    { ac.rigid
 func (ac *AngleConstraint) SetEnabled(b bool) *AngleConstraint        { ac.enabled = b; return ac }
 
 // Update applies the angle constraint.
-// Matches QAngleConstraint::Update in qangleconstraint.cpp:76-167.
 //
 // Parameters:
 //   - specifiedRigidity: override rigidity (-1.0 = use the constraint's own rigidity)

@@ -6,10 +6,6 @@ import "github.com/chewxy/math32"
 //
 // The World owns all bodies, joints, springs, raycasts, and the contact pool.
 // One call to Update() advances the simulation by one step.
-//
-// Phase 1 scope: gravity, iteration count, bodies, broadphase, narrowphase,
-// manifold solving, sleeping. Joints, springs, raycasts, soft bodies, and
-// area bodies come in later phases.
 type World struct {
 	// Collections
 	bodies    []*Body
@@ -47,7 +43,6 @@ type World struct {
 	// Debug
 	debugGizmos bool
 
-	// Concurrency (Phase 5)
 	concurrency ConcurrencyConfig
 
 	// Contact pool (per-World, replaces the C++ global static)
@@ -378,15 +373,14 @@ func (w *World) AddGizmo(g *Gizmo) {
 // --- Update (the simulation step) ---
 
 // Update advances the simulation by one step.
-// Matches QWorld::Update in qworld.cpp:63-434 (Phase 1 subset).
+// Matches QWorld::Update in qworld.cpp:63-434
 //
-// Phase 1 scope:
 //  1. Per-body Update (Verlet integration)
 //  2. OnPreStep events
 //  3. Broadphase prep
 //  4. Iteration loop: narrowphase + Solve + SolveFrictionAndVelocities
 //  5. Global AABB update
-//  6. Sleeping (stub for Phase 1 — full implementation in Phase 3)
+//  6. Sleeping
 //  7. OnStep events
 func (w *World) Update() {
 	if !w.enabled {
@@ -489,8 +483,6 @@ func (w *World) Update() {
 		}
 
 		if w.concurrency.Enabled && len(pairs) > 0 {
-			// Parallel narrowphase (Phase 5): GetCollisions runs in goroutines.
-			// Solve stays serial (manifolds mutate body state).
 			w.solvePairsParallel(pairs)
 		} else {
 			for _, p := range pairs {
@@ -545,8 +537,7 @@ func (w *World) Update() {
 		}
 	}
 
-	// 9. Island-based sleeping.
-	// Faithful port of qworld.cpp:340-424. Bodies that haven't moved for
+	// 9. Island-based sleeping.Bodies that haven't moved for
 	// 120 consecutive steps are put to sleep (integration + constraints
 	// skip them). Any motion wakes the entire island.
 	if w.enableSleeping {
@@ -807,15 +798,13 @@ func (w *World) UpdateConstraints() {
 		spring.Update(spring.rigidity, false, true)
 	}
 
-	// Joints (Phase 3 — currently no-ops)
+	// Joints
 	for _, joint := range w.joints {
 		joint.Update()
 	}
 }
 
 // updateSleeping runs the island-based sleeping algorithm.
-// Faithful port of qworld.cpp:340-424 + GenerateIslands (qworld.cpp:1096-1124)
-// + CreateIslands (qworld.cpp:1070-1093).
 //
 // Algorithm:
 //  1. Generate collision islands via DFS over AABB-overlapping body pairs.
@@ -907,7 +896,7 @@ func (w *World) updateSleeping() {
 // body pairs. Static and disabled bodies are not included as island seeds
 // (but static bodies CAN be visited as connectivity bridges — matches C++
 // CreateIslands which skips static at the entry point but traverses through
-// them). Faithful port of qworld.cpp:1096-1124 + 1070-1093.
+// them).
 func (w *World) generateIslands() [][]*Body {
 	n := len(w.bodies)
 	visited := make([]bool, n)

@@ -30,10 +30,7 @@ func Vec2Left() Vec2 { return Vec2{X: -1, Y: 0} }
 
 // Vec2NaN returns a vector with NaN components, used as a sentinel for
 // "no intersection" in LineIntersectionLine.
-func Vec2NaN() Vec2 { return Vec2{X: float32NaN(), Y: float32NaN()} }
-
-// float32NaN returns a float32 NaN. Go has no math.NaN() for float32.
-func float32NaN() float32 { return float32(mathNaN()) }
+func Vec2NaN() Vec2 { return Vec2{X: math32.NaN(), Y: math32.NaN()} }
 
 // IsNaN reports whether both components are NaN. Matches QVector::isNaN
 // in qvector.h:183-188 (returns true only if BOTH x and y are NaN).

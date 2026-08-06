@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+
+	"github.com/chewxy/math32"
 )
 
 // BodySnapshot captures the observable state of a body at step N.
@@ -68,9 +70,9 @@ func CompareGolden(t *testing.T, goldenPath string, actual WorldSnapshot) {
 
 	for i, eb := range expected.Bodies {
 		ab := actual.Bodies[i]
-		if absFloat32(eb.PosX-ab.PosX) > tol ||
-			absFloat32(eb.PosY-ab.PosY) > tol ||
-			absFloat32(eb.Rotation-ab.Rotation) > tol {
+		if math32.Abs(eb.PosX-ab.PosX) > tol ||
+			math32.Abs(eb.PosY-ab.PosY) > tol ||
+			math32.Abs(eb.Rotation-ab.Rotation) > tol {
 			t.Errorf("step %d body %d mismatch:\n  expected %+v\n  got      %+v\n  (tol %v)",
 				actual.Step, i, eb, ab, tol)
 		}
@@ -90,11 +92,4 @@ func LoadGolden(t *testing.T, goldenPath string) GoldenFile {
 		t.Fatalf("unmarshal golden %s: %v", goldenPath, err)
 	}
 	return g
-}
-
-func absFloat32(x float32) float32 {
-	if x < 0 {
-		return -x
-	}
-	return x
 }

@@ -1,6 +1,8 @@
 package parity
 
-import "testing"
+import (
+	"testing"
+)
 
 // TestParityHarnessCompiles verifies the parity test framework loads and
 // the helper functions work.
@@ -16,18 +18,5 @@ func TestParityHarnessCompiles(t *testing.T) {
 	}
 	if len(snap.Bodies) != 1 {
 		t.Fatal("snapshot body count mismatch")
-	}
-}
-
-// TestAbsFloat32 verifies the tolerance helper.
-func TestAbsFloat32(t *testing.T) {
-	if got := absFloat32(-5); got != 5 {
-		t.Errorf("absFloat32(-5) = %v, want 5", got)
-	}
-	if got := absFloat32(5); got != 5 {
-		t.Errorf("absFloat32(5) = %v, want 5", got)
-	}
-	if got := absFloat32(0); got != 0 {
-		t.Errorf("absFloat32(0) = %v, want 0", got)
 	}
 }

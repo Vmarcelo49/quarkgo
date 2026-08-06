@@ -4,7 +4,7 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -35,11 +35,11 @@ func NewMixedBodiesScene() *MixedBodiesScene {
 		for col := range 7 {
 			x := startX + float32(col)*96
 			y := startY - float32(row)*64
-			r := float32(rand.Intn(32) + 16) // 16..47
-			if rand.Intn(2) == 0 {
+			r := float32(rand.IntN(32) + 16) // 16..47
+			if rand.IntN(2) == 0 {
 				scene.AddCircleBodyR(x, y, r)
 			} else {
-				scene.AddPolygonBodyR(x, y, rand.Intn(8)+3, r)
+				scene.AddPolygonBodyR(x, y, rand.IntN(8)+3, r)
 			}
 		}
 	}

@@ -1,7 +1,6 @@
 package physics
 
 // Manifold holds collision data between two bodies and resolves it.
-// Faithful port of QManifold in qmanifold.h, qmanifold.cpp.
 //
 // Key C++ conventions:
 //   - bodyA/bodyB are ordered by pointer (smaller first) — NOT reference/incident
@@ -245,7 +244,6 @@ func (m *Manifold) Solve() {
 		}
 
 		// Lazy particle handling (one-way platforms / pass-through).
-		// Faithful port of qmanifold.cpp:254-287, 307, 322, 333-334.
 		//
 		// A lazy particle only collides ONCE per body-pair. The first
 		// contact registers the body in oneTimeCollidedBodies; subsequent

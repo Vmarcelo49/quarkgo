@@ -372,8 +372,7 @@ func polygonVsPolygon(meshA, meshB *Mesh, pool *ContactPool) []*Contact {
 }
 
 // polygonVsPolygonParticles runs SAT + edge clipping between two particle
-// slices (each representing a convex polygon). Faithful port of
-// QCollision::PolygonAndPolygon (qcollision.cpp:1087-1208).
+// slices (each representing a convex polygon).
 //
 // Algorithm:
 //
@@ -1009,8 +1008,7 @@ func LineIntersectionLine(d1A, d1B, d2A, d2B Vec2) Vec2 {
 }
 
 // pointInPolygonWN tests whether `point` is inside the polygon (convex or
-// concave) using the winding number algorithm. Faithful port of
-// QCollision::PointInPolygonWN (qcollision.cpp:1369-1409).
+// concave) using the winding number algorithm.
 //
 // Casts a horizontal ray from `point` to +X infinity. For each polygon edge,
 // if the edge crosses the ray's Y range, computes the ray-vs-edge intersection

@@ -6,8 +6,7 @@ import (
 	"github.com/chewxy/math32"
 )
 
-// Mesh is the shape + topology container for a body. Matches QMesh in
-// qmesh.h, qmesh.cpp.
+// Mesh is the shape + topology container for a body.
 //
 // A Mesh carries:
 //   - Particles (the smallest building blocks; positioned by the body)
@@ -53,7 +52,6 @@ type Mesh struct {
 }
 
 // CollisionBehavior enumerates how a mesh participates in collision detection.
-// Matches QMesh::CollisionBehaviors in qmesh.h:51-55.
 type CollisionBehavior int
 
 const (
@@ -157,7 +155,7 @@ func (m *Mesh) CollisionBehavior() CollisionBehavior {
 }
 
 // Circumference returns the total perimeter of the polygon (using local
-// particle positions). Matches QMesh::GetCircumference.
+// particle positions).
 func (m *Mesh) Circumference() float32 {
 	var res float32
 	n := len(m.polygon)
@@ -171,7 +169,6 @@ func (m *Mesh) Circumference() float32 {
 
 // InitialArea returns the area computed from local particle positions,
 // including both polygon area and circle areas (for particles with r > 0.5).
-// Matches QMesh::GetInitialArea.
 func (m *Mesh) InitialArea() float32 {
 	res := m.polygonArea(true)
 	for _, p := range m.particles {
@@ -183,7 +180,6 @@ func (m *Mesh) InitialArea() float32 {
 }
 
 // Area returns the area computed from global particle positions.
-// Matches QMesh::GetArea.
 func (m *Mesh) Area() float32 {
 	res := m.polygonArea(false)
 	for _, p := range m.particles {
@@ -244,7 +240,6 @@ func (m *Mesh) SetPolygonForCollisionsDisabled(b bool) *Mesh {
 // --- Particle operations ---
 
 // AddParticle appends a particle to the mesh and sets its owner.
-// Matches QMesh::AddParticle.
 func (m *Mesh) AddParticle(p *Particle) *Mesh {
 	p.SetOwnerMesh(m)
 	m.particles = append(m.particles, p)
@@ -253,7 +248,6 @@ func (m *Mesh) AddParticle(p *Particle) *Mesh {
 
 // RemoveParticleAt removes the particle at the given index and cascades the
 // removal to polygon, springs, UV maps, and angle constraints.
-// Matches QMesh::RemoveParticleAt (qmesh.cpp:112-128).
 //
 // C++ calls RemoveParticleFromPolygon, RemoveMatchingSprings,
 // RemoveMatchingUVMaps, RemoveMatchingAngleConstraints before erasing the
@@ -396,7 +390,6 @@ func (m *Mesh) UpdateCollisionBehavior() {
 // --- Factory methods ---
 
 // NewCircleMesh creates a single-particle mesh representing a circle.
-// Matches QMesh::CreateWithCircle in qmesh.cpp.
 func NewCircleMesh(radius float32, centerPosition Vec2) *Mesh {
 	m := NewMesh()
 	p := NewParticle(centerPosition.X, centerPosition.Y, radius)
@@ -407,7 +400,6 @@ func NewCircleMesh(radius float32, centerPosition Vec2) *Mesh {
 // NewRectMesh creates a 4-corner rectangle mesh. If grid is non-zero,
 // generates an internal grid of particles with cross-diagonal springs
 // (used for soft bodies). For rigid bodies, pass Vec2Zero for grid.
-// Matches QMesh::CreateWithRect.
 func NewRectMesh(size, centerPosition, grid Vec2, opts ...MeshFactoryOption) *Mesh {
 	cfg := defaultMeshFactoryConfig()
 	for _, opt := range opts {
@@ -419,7 +411,6 @@ func NewRectMesh(size, centerPosition, grid Vec2, opts ...MeshFactoryOption) *Me
 
 // NewPolygonMesh creates a regular N-gon mesh. If polarGrid > 0, generates
 // concentric rings of internal particles connected by springs.
-// Matches QMesh::CreateWithPolygon.
 func NewPolygonMesh(radius float32, sideCount int, centerPosition Vec2, polarGrid int, opts ...MeshFactoryOption) *Mesh {
 	cfg := defaultMeshFactoryConfig()
 	for _, opt := range opts {
@@ -464,7 +455,7 @@ func WithParticleRadius(r float32) MeshFactoryOption {
 
 // NewMeshFromData constructs a mesh from a MeshData struct. This is the
 // universal factory — all other factories (rect, polygon) build a MeshData
-// and delegate here. Matches QMesh::CreateWithMeshData in qmesh.cpp.
+// and delegate here.
 func NewMeshFromData(data MeshData, enableSprings, enablePolygons bool) *Mesh {
 	m := NewMesh()
 
@@ -516,8 +507,7 @@ func NewMeshFromData(data MeshData, enableSprings, enablePolygons bool) *Mesh {
 	}
 
 	// Build angle constraints for the polygon (one per polygon vertex)
-	// This matches QMesh's behavior where polygon meshes get angle constraints
-	// automatically. The rigidity is set from minAngleConstraintOfPolygon.
+	// The rigidity is set from minAngleConstraintOfPolygon.
 	if enablePolygons && len(m.polygon) >= 3 {
 		// Skip angle constraint creation by default — the C++ engine creates
 		// them via ApplyAngleConstraintsToPolygon which uses a different
@@ -543,7 +533,6 @@ func NewMeshFromData(data MeshData, enableSprings, enablePolygons bool) *Mesh {
 // GenerateRectangleMeshData produces a MeshData for a rectangle of the
 // given size, centered at centerPosition. If grid.X or grid.Y > 1, an
 // internal grid of particles is generated with cross-diagonal springs.
-// Matches QMesh::GenerateRectangleMeshData in qmesh.cpp.
 func GenerateRectangleMeshData(size, centerPosition, grid Vec2, particleRadius float32) MeshData {
 	res := MeshData{}
 	halfSize := size.Mul(0.5)
@@ -646,7 +635,7 @@ func GenerateRectangleMeshData(size, centerPosition, grid Vec2, particleRadius f
 
 // GeneratePolygonMeshData produces a MeshData for a regular N-gon of the
 // given radius and side count. If polarGrid > 0, generates concentric
-// rings of internal particles. Matches QMesh::GeneratePolygonMeshData.
+// rings of internal particles.
 func GeneratePolygonMeshData(radius float32, sideCount int, centerPosition Vec2, polarGrid int, particleRadius float32) MeshData {
 	res := MeshData{}
 	anglePart := (math32.Pi * 2) / float32(sideCount)
@@ -711,7 +700,7 @@ func GeneratePolygonMeshData(radius float32, sideCount int, centerPosition Vec2,
 			}
 		}
 
-		// Adding a Center Particle (matches qmesh.cpp:1185-1198).
+		// Adding a Center Particle .
 		// For polarGrid > 0, add a center particle and radial springs from
 		// the center to the innermost ring. Without this, the innermost ring
 		// has no inward anchor and the soft body collapses inward.
@@ -731,7 +720,7 @@ func GeneratePolygonMeshData(radius float32, sideCount int, centerPosition Vec2,
 			}
 		}
 
-		// Adding construction springs (matches qmesh.cpp:1202-1214).
+		// Adding construction springs .
 		// For polarGrid >= 0, add ±2 boundary-neighbor springs to provide
 		// shear resistance. Without these, soft body polygons shear too easily.
 		if polarGrid >= 0 {
@@ -747,7 +736,7 @@ func GeneratePolygonMeshData(radius float32, sideCount int, centerPosition Vec2,
 			}
 		}
 
-		// Adding UV Maps (matches qmesh.cpp:1219-1266).
+		// Adding UV Maps .
 		if polarGrid <= 0 {
 			// Fan: single UV map listing all polygon vertices.
 			var map1 []int
@@ -801,6 +790,7 @@ func GeneratePolygonMeshData(radius float32, sideCount int, centerPosition Vec2,
 
 // markSubConvexPolygonsDirty flags that the convex decomposition cache
 // is stale. Called when the polygon changes.
+// TODO: Check why this is unused, where in the c++ code this was ported from.
 func (m *Mesh) markSubConvexPolygonsDirty() {
 	m.subConvexPolygonsNeedsUpdate = true
 }
@@ -808,8 +798,6 @@ func (m *Mesh) markSubConvexPolygonsDirty() {
 // UpdateSubConvexPolygons recomputes the convex decomposition of the
 // mesh's polygon. If the polygon is convex, the decomposition is just
 // the polygon itself. If concave, it's decomposed via polypartition.
-//
-// Matches QMesh::UpdateSubConvexPolygons in qmesh.cpp:239-268.
 //
 // NOTE: The C++ engine uses the vendored polypartition library directly.
 // The Go port uses the mesh/polypartition sub-package, but to avoid a

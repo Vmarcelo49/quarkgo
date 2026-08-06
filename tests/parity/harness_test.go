@@ -3,8 +3,7 @@ package parity
 import "testing"
 
 // TestParityHarnessCompiles verifies the parity test framework loads and
-// the helper functions work. This is a Phase 0 placeholder — real parity
-// tests land in Phase 1 once the physics engine can simulate a world.
+// the helper functions work.
 func TestParityHarnessCompiles(t *testing.T) {
 	snap := WorldSnapshot{
 		Step: 1,

@@ -17,9 +17,9 @@ type Spring struct {
 	pA, pB *Particle
 	length float32
 
-	rigidity float32
+	rigidity   float32
 	isInternal bool
-	enabled bool
+	enabled    bool
 
 	enableDistanceLimit   bool
 	minimumDistanceFactor float32
@@ -28,7 +28,6 @@ type Spring struct {
 
 // NewSpring creates a spring between two particles, auto-calculating the
 // rest length from the current distance.
-// Matches QSpring::QSpring(pA, pB, internal) in qspring.cpp:33-40.
 func NewSpring(pA, pB *Particle, internal bool) *Spring {
 	s := &Spring{
 		pA:                    pA,
@@ -44,7 +43,6 @@ func NewSpring(pA, pB *Particle, internal bool) *Spring {
 }
 
 // NewSpringWithLength creates a spring with an explicit rest length.
-// Matches QSpring::QSpring(pA, pB, length, internal) in qspring.cpp:42-48.
 func NewSpringWithLength(pA, pB *Particle, length float32, internal bool) *Spring {
 	s := NewSpring(pA, pB, internal)
 	s.length = length
@@ -62,7 +60,7 @@ func (s *Spring) ParticleB() *Particle { return s.pB }
 // Length returns the spring's rest length.
 func (s *Spring) Length() float32 { return s.length }
 
-// Rigidity returns the spring's rigidity (0.0–1.0).
+// Rigidity returns the spring's rigidity (0.0-1.0).
 func (s *Spring) Rigidity() float32 { return s.rigidity }
 
 // IsInternal reports whether this is an internal spring (affects area-preserving).
@@ -91,7 +89,7 @@ func (s *Spring) SetParticleB(p *Particle) *Spring { s.pB = p; return s }
 // SetLength sets the spring's rest length.
 func (s *Spring) SetLength(l float32) *Spring { s.length = l; return s }
 
-// SetRigidity sets the spring's rigidity (0.0–1.0).
+// SetRigidity sets the spring's rigidity (0.0-1.0).
 func (s *Spring) SetRigidity(r float32) *Spring { s.rigidity = r; return s }
 
 // SetIsInternal marks the spring as internal.
@@ -177,7 +175,7 @@ func (s *Spring) Update(rigidity float32, internalsException bool, isWorldSpring
 	}
 
 	sv := s.pB.GlobalPosition().Sub(s.pA.GlobalPosition()) // spring vector
-	sl := sv.Length()                                       // spring distance
+	sl := sv.Length()                                      // spring distance
 	if sl < 1e-6 {
 		return
 	}

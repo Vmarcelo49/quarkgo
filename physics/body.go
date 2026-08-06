@@ -2,34 +2,31 @@ package physics
 
 import "github.com/chewxy/math32"
 
-// BodyType enumerates the body kinds. Matches QBody::BodyTypes in qbody.h:56-60.
 type BodyType int
 
 const (
-	// BodyTypeRigid is a non-deformable solid body simulated with Verlet integration.
+	// Non-deformable solid body simulated with Verlet integration.
 	BodyTypeRigid BodyType = iota
 
-	// BodyTypeArea is a sensor/trigger body that reports collisions but doesn't respond.
+	// Sensor/trigger body that reports collisions but doesn't respond.
 	BodyTypeArea
 
-	// BodyTypeSoft is a deformable body using mass-spring model with PBD.
+	// Deformable body using mass-spring model with PBD.
 	BodyTypeSoft
 )
 
 // BodyMode determines whether a body reacts to forces and collisions.
-// Matches QBody::Modes in qbody.h:51-54.
 type BodyMode int
 
 const (
-	// BodyModeDynamic reacts to forces, constraints, and collisions.
+	// Reacts to forces, constraints, and collisions.
 	BodyModeDynamic BodyMode = iota
 
-	// BodyModeStatic does not react; it provides collision surfaces for dynamic bodies.
+	// Does not react; it provides collision surfaces for dynamic bodies.
 	BodyModeStatic
 )
 
-// Body is the base type for all physics bodies. Matches QBody in
-// qbody.h, qbody.cpp.
+// Body is the base type for all physics bodies.
 //
 // Body is abstract in the C++ engine (has virtual methods). In Go, we
 // embed it as a struct field in RigidBody, SoftBody, and AreaBody.
@@ -119,7 +116,6 @@ type Body struct {
 	ignoreGravity bool
 }
 
-// NewBody constructs a Body with default values matching QBody::QBody.
 func NewBody() *Body {
 	return &Body{
 		bodyType:                   BodyTypeRigid,
@@ -242,8 +238,7 @@ func (b *Body) TotalInitialArea() float32 {
 }
 
 // Inertia returns the body's rotational inertia. Computed lazily.
-// Matches QBody::GetInertia in qbody.h:261-268 — including the >= 500.0 floor
-// on the WARM path. The clamped value is cached in b.inertiaCache so callers
+// The clamped value is cached in b.inertiaCache so callers
 // after the first compute see the same floor that C++ returns from its
 // private `float inertia` field. Without this cache, small rigid bodies
 // (e.g. 10×10 with mass 1, area*2*mass ≈ 200 < 500) would compute ~2.5x
@@ -262,7 +257,7 @@ func (b *Body) Inertia() float32 {
 }
 
 // Circumference returns the total perimeter of all meshes' polygons.
-// Matches qbody.h:331-341 — caches the computed perimeter for the warm path.
+// Caches the computed perimeter for the warm path.
 func (b *Body) Circumference() float32 {
 	if b.circumferenceNeedsUpdate {
 		var res float32
@@ -280,7 +275,6 @@ func (b *Body) Circumference() float32 {
 
 // SetPosition sets the body's world-space position. If withPreviousPosition
 // is true (the default), prevPosition is also set, zeroing the implicit velocity.
-// Matches QBody::SetPosition in qbody.h:387-397.
 func (b *Body) SetPosition(v Vec2, withPreviousPosition ...bool) *Body {
 	wpp := true
 	if len(withPreviousPosition) > 0 {
@@ -313,7 +307,6 @@ func (b *Body) AddPreviousPosition(v Vec2) *Body {
 }
 
 // SetRotation sets the body's rotation in radians.
-// Matches QBody::SetRotation in qbody.h:432-438.
 func (b *Body) SetRotation(angleRadian float32, withPreviousRotation ...bool) *Body {
 	wpr := true
 	if len(withPreviousRotation) > 0 {
@@ -503,7 +496,6 @@ func (b *Body) WakeUp() *Body {
 // --- Internal methods (called by World, Manifold, etc.) ---
 
 // UpdateAABB recomputes the body's AABB from all particle positions.
-// Matches QBody::UpdateAABB in qbody.cpp:195-225.
 func (b *Body) UpdateAABB() {
 	minX := MaxWorldSize
 	minY := MaxWorldSize
@@ -566,7 +558,6 @@ func (b *Body) UpdateMeshTransforms() {
 
 // Update is the per-step integration hook. The base implementation just
 // resets lazy collisions; RigidBody and SoftBody override.
-// Matches QBody::Update in qbody.cpp:253-263.
 func (b *Body) Update() {
 	for _, mesh := range b.meshes {
 		for _, p := range mesh.particles {
@@ -603,7 +594,7 @@ func (b *Body) ApplyForce(force Vec2) *Body { return b }
 // --- Static helpers ---
 
 // CanCollide reports whether two bodies can collide based on their state
-// and layer bits. Matches QBody::CanCollide in qbody.cpp:108-132.
+// and layer bits.
 func CanCollide(bodyA, bodyB *Body, checkBodiesAreEnabled bool) bool {
 	if bodyA.world != bodyB.world {
 		return false
@@ -642,7 +633,6 @@ func (b *Body) OverlapWithLayersBit(layersBit int) bool {
 }
 
 // ComputeFriction calculates the friction force for a collision.
-// Matches QBody::ComputeFriction in qbody.cpp:81-106.
 //
 // Uses Coulomb friction: tangent = relativeVelocity projected onto the
 // contact plane; if |jt| < penetration * staticFriction, use static
@@ -668,3 +658,23 @@ func ComputeFriction(bodyA, bodyB *Body, normal Vec2, penetration float32, relat
 	}
 	return frictionForce
 }
+
+// BodyPair represents an unordered pair of bodies.
+// Used by broadphase to report candidate collision pairs.
+type BodyPair struct {
+	A, B *Body
+}
+
+// Canonicalize returns the pair in canonical order (by index in the world's
+// bodies slice, which is stable). Used for deduplication in broadphase.
+func (p BodyPair) Canonicalize() BodyPair {
+	// Order by pointer address for a stable canonical form.
+	// We compare via reflect.ValueOf().Pointer() which returns uintptr.
+	// To avoid the reflect import in the hot path, broadphase implementations
+	// use a simpler approach: they only emit pairs where A is added before B
+	// in the bodies slice, so the pair is already canonical.
+	return p
+}
+
+// IsSelf reports whether the pair is a body with itself.
+func (p BodyPair) IsSelf() bool { return p.A == p.B }

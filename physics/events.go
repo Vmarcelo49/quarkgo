@@ -1,7 +1,6 @@
 package physics
 
-// CollisionInfo is passed to OnCollision event listeners. Matches
-// QBody::CollisionInfo in qbody.h:146-156.
+// CollisionInfo is passed to OnCollision event listeners.
 type CollisionInfo struct {
 	// Position is the world-space contact position.
 	Position Vec2

@@ -3,7 +3,6 @@ package physics
 import "github.com/chewxy/math32"
 
 // Raycast casts a ray into the world and reports collision contacts.
-// Matches QRaycast in qraycast.h, qraycast.cpp.
 //
 // Two modes:
 //   - Instance-based: register a Raycast with World.AddRaycast; contacts
@@ -91,7 +90,6 @@ func (r *Raycast) UpdateContacts() {
 }
 
 // RaycastTo performs a one-shot raycast against the world.
-// Matches QRaycast::RaycastTo in qraycast.cpp:94-116.
 //
 // Filters bodies by AABB and layer bits, then tests each body's meshes
 // for ray-polygon or ray-circle intersection.
@@ -143,7 +141,6 @@ func RaycastTo(world *World, rayPosition, rayVector Vec2, collidableLayers int, 
 }
 
 // raycastToParticles tests a ray against circle particles.
-// Matches QRaycast::RaycastToParticles in qraycast.cpp:181-222.
 //
 // Emits AT MOST ONE contact per mesh (the nearest particle), matching C++
 // nearParticleIndex tracking. Uses C++ projection range [-r, rayLen+r] and
@@ -224,7 +221,6 @@ func raycastToParticles(body *Body, mesh *Mesh, rayPos, rayVec, rayNormal Vec2, 
 }
 
 // raycastToPolygon tests a ray against polygon edges.
-// Matches QRaycast::RaycastToPolygon in qraycast.cpp:224-270.
 //
 // Emits AT MOST ONE contact per mesh (the nearest edge intersection), and
 // applies the C++ containing-body check via `rayVec.Dot(normal) > 0`.
@@ -297,7 +293,6 @@ func raycastToPolygon(body *Body, mesh *Mesh, rayPos, rayVec, rayNormal Vec2, en
 }
 
 // sortRaycastContacts sorts contacts by distance (ascending).
-// Matches QRaycast::SortContacts in qraycast.cpp:272-275.
 func sortRaycastContacts(contacts []RaycastContact) {
 	// Simple insertion sort (small N, avoids sort import)
 	for i := 1; i < len(contacts); i++ {

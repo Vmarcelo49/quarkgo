@@ -2,7 +2,7 @@ package physics
 
 import "slices"
 
-// AreaBody is a sensor/trigger body. Matches QAreaBody in qareabody.h, qareabody.cpp.
+// AreaBody is a sensor/trigger body.
 //
 // Area bodies do NOT respond to collisions or receive forces — they only
 // REPORT collisions. They maintain a set of currently-collided bodies and
@@ -33,7 +33,6 @@ type AreaBody struct {
 }
 
 // NewAreaBody constructs an AreaBody with default values.
-// Matches QAreaBody::QAreaBody in qareabody.cpp:32-35.
 func NewAreaBody() *AreaBody {
 	ab := &AreaBody{
 		bodies: make(map[*Body]struct{}),
@@ -93,7 +92,6 @@ func (ab *AreaBody) SetLinearForceToApply(v Vec2) *AreaBody {
 
 // ComputeLinearForce returns the force to apply to a specific body.
 // If ComputeLinearForceListener is set, uses it; otherwise uses linearForceToApply.
-// Matches QAreaBody::ComputeLinearForce in qareabody.h:117-123.
 func (ab *AreaBody) ComputeLinearForce(body *Body) Vec2 {
 	if ab.ComputeLinearForceListener != nil {
 		return ab.ComputeLinearForceListener(body)
@@ -108,7 +106,6 @@ func (ab *AreaBody) AsBody() *Body { return &ab.Body }
 
 // addCollidedBody registers a body as currently colliding.
 // If the body is new, dispatches OnCollisionEnter.
-// Matches QAreaBody::AddCollidedBody in qareabody.cpp:36-44.
 func (ab *AreaBody) addCollidedBody(body *Body) {
 	if _, exists := ab.bodies[body]; !exists {
 		ab.bodies[body] = struct{}{}
@@ -120,7 +117,6 @@ func (ab *AreaBody) addCollidedBody(body *Body) {
 
 // CheckBodies re-tests all currently-collided bodies and dispatches
 // enter/exit events. Called once per physics step by World.Update.
-// Matches QAreaBody::CheckBodies in qareabody.cpp:45-162.
 func (ab *AreaBody) CheckBodies() {
 	var blackList []*Body
 

@@ -1,6 +1,10 @@
 package physics
 
-import "github.com/chewxy/math32"
+import (
+	"math"
+
+	"github.com/chewxy/math32"
+)
 
 // Vec2 is a 2D float32 vector. Matches QVector in qvector.h.
 //
@@ -33,7 +37,7 @@ func Vec2Left() Vec2 { return Vec2{X: -1, Y: 0} }
 func Vec2NaN() Vec2 { return Vec2{X: float32NaN(), Y: float32NaN()} }
 
 // float32NaN returns a float32 NaN. Go has no math.NaN() for float32.
-func float32NaN() float32 { return float32(mathNaN()) }
+func float32NaN() float32 { return float32(math.NaN()) }
 
 // IsNaN reports whether both components are NaN. Matches QVector::isNaN
 // in qvector.h:183-188 (returns true only if BOTH x and y are NaN).

@@ -15,86 +15,84 @@ package physics
 // enforces the constraint when the current distance exceeds the target
 // (useful for "rope" or "tether" constraints).
 type Joint struct {
-        bodyA    *RigidBody
-        bodyB    *RigidBody
-        anchorA  Vec2 // body-local if bodyA != nil, else world-space
-        anchorB  Vec2 // body-local if bodyB != nil, else world-space
+	bodyA   *RigidBody
+	bodyB   *RigidBody
+	anchorA Vec2 // body-local if bodyA != nil, else world-space
+	anchorB Vec2 // body-local if bodyB != nil, else world-space
 
-        anchorGlobalA Vec2
-        anchorGlobalB Vec2
+	anchorGlobalA Vec2
+	anchorGlobalB Vec2
 
-        collisionsEnabled bool
-        enabled           bool
-        rigidity          float32
-        balance           float32
-        length            float32
-        grooveEnabled     bool
-        world             *World
+	collisionsEnabled bool
+	enabled           bool
+	rigidity          float32
+	balance           float32
+	length            float32
+	grooveEnabled     bool
+	world             *World
 }
 
 // NewJoint creates a joint between two bodies. If bodyB is nil, anchorB
 // is treated as a fixed point in world space. Same for bodyA.
-// Matches QJoint::QJoint in qjoint.cpp:32-64.
 func NewJoint(bodyA *RigidBody, anchorWorldPositionA, anchorWorldPositionB Vec2, bodyB *RigidBody) *Joint {
-        j := &Joint{
-                bodyA:            bodyA,
-                bodyB:            bodyB,
-                rigidity:         1.0,
-                balance:          0.5,
-                collisionsEnabled: false,
-                enabled:          true,
-        }
-        j.length = (anchorWorldPositionB.Sub(anchorWorldPositionA)).Length()
+	j := &Joint{
+		bodyA:             bodyA,
+		bodyB:             bodyB,
+		rigidity:          1.0,
+		balance:           0.5,
+		collisionsEnabled: false,
+		enabled:           true,
+	}
+	j.length = (anchorWorldPositionB.Sub(anchorWorldPositionA)).Length()
 
-        // Initialize anchorA (body-local if bodyA != nil)
-        if bodyA != nil {
-                j.anchorA = anchorWorldPositionA.Sub(bodyA.position).Rotated(-bodyA.rotation)
-        } else {
-                j.anchorA = anchorWorldPositionA
-        }
-        j.anchorGlobalA = anchorWorldPositionA
+	// Initialize anchorA (body-local if bodyA != nil)
+	if bodyA != nil {
+		j.anchorA = anchorWorldPositionA.Sub(bodyA.position).Rotated(-bodyA.rotation)
+	} else {
+		j.anchorA = anchorWorldPositionA
+	}
+	j.anchorGlobalA = anchorWorldPositionA
 
-        // Initialize anchorB (body-local if bodyB != nil)
-        if bodyB != nil {
-                j.anchorB = anchorWorldPositionB.Sub(bodyB.position).Rotated(-bodyB.rotation)
-        } else {
-                j.anchorB = anchorWorldPositionB
-        }
-        j.anchorGlobalB = anchorWorldPositionB
+	// Initialize anchorB (body-local if bodyB != nil)
+	if bodyB != nil {
+		j.anchorB = anchorWorldPositionB.Sub(bodyB.position).Rotated(-bodyB.rotation)
+	} else {
+		j.anchorB = anchorWorldPositionB
+	}
+	j.anchorGlobalB = anchorWorldPositionB
 
-        // Determine world from bodies
-        if bodyA != nil && bodyA.world != nil {
-                j.world = bodyA.world
-        } else if bodyB != nil && bodyB.world != nil {
-                j.world = bodyB.world
-        }
+	// Determine world from bodies
+	if bodyA != nil && bodyA.world != nil {
+		j.world = bodyA.world
+	} else if bodyB != nil && bodyB.world != nil {
+		j.world = bodyB.world
+	}
 
-        // Register collision exception (default: collisions disabled)
-        j.SetCollisionEnabled(false)
+	// Register collision exception (default: collisions disabled)
+	j.SetCollisionEnabled(false)
 
-        return j
+	return j
 }
 
 // NewPinJoint creates a joint with zero length (pin joint).
-// Matches the single-anchor QJoint constructor in qjoint.h:79.
 func NewPinJoint(bodyA *RigidBody, commonAnchor Vec2, bodyB *RigidBody) *Joint {
-        return NewJoint(bodyA, commonAnchor, commonAnchor, bodyB)
+	return NewJoint(bodyA, commonAnchor, commonAnchor, bodyB)
 }
 
 // --- Getters ---
 
-func (j *Joint) BodyA() *RigidBody                { return j.bodyA }
-func (j *Joint) BodyB() *RigidBody                { return j.bodyB }
-func (j *Joint) AnchorAPosition() Vec2            { return j.anchorA }
-func (j *Joint) AnchorBPosition() Vec2            { return j.anchorB }
-func (j *Joint) AnchorAGlobalPosition() Vec2      { return j.anchorGlobalA }
-func (j *Joint) AnchorBGlobalPosition() Vec2      { return j.anchorGlobalB }
-func (j *Joint) CollisionEnabled() bool            { return j.collisionsEnabled }
-func (j *Joint) Rigidity() float32                 { return j.rigidity }
-func (j *Joint) Length() float32                   { return j.length }
-func (j *Joint) Balance() float32                  { return j.balance }
-func (j *Joint) GrooveEnabled() bool               { return j.grooveEnabled }
-func (j *Joint) Enabled() bool                      { return j.enabled }
+func (j *Joint) BodyA() *RigidBody           { return j.bodyA }
+func (j *Joint) BodyB() *RigidBody           { return j.bodyB }
+func (j *Joint) AnchorAPosition() Vec2       { return j.anchorA }
+func (j *Joint) AnchorBPosition() Vec2       { return j.anchorB }
+func (j *Joint) AnchorAGlobalPosition() Vec2 { return j.anchorGlobalA }
+func (j *Joint) AnchorBGlobalPosition() Vec2 { return j.anchorGlobalB }
+func (j *Joint) CollisionEnabled() bool      { return j.collisionsEnabled }
+func (j *Joint) Rigidity() float32           { return j.rigidity }
+func (j *Joint) Length() float32             { return j.length }
+func (j *Joint) Balance() float32            { return j.balance }
+func (j *Joint) GrooveEnabled() bool         { return j.grooveEnabled }
+func (j *Joint) Enabled() bool               { return j.enabled }
 
 // --- Setters ---
 
@@ -104,47 +102,46 @@ func (j *Joint) SetBodyB(b *RigidBody) *Joint { j.bodyB = b; return j }
 // SetAnchorAPosition sets anchorA in world coordinates; internally stored
 // as body-local if bodyA is set. Matches qjoint.h:154-161.
 func (j *Joint) SetAnchorAPosition(worldPosition Vec2) *Joint {
-        if j.bodyA != nil {
-                j.anchorA = worldPosition.Sub(j.bodyA.position).Rotated(-j.bodyA.rotation)
-        } else {
-                j.anchorA = worldPosition
-        }
-        return j
+	if j.bodyA != nil {
+		j.anchorA = worldPosition.Sub(j.bodyA.position).Rotated(-j.bodyA.rotation)
+	} else {
+		j.anchorA = worldPosition
+	}
+	return j
 }
 
 // SetAnchorBPosition sets anchorB in world coordinates.
 func (j *Joint) SetAnchorBPosition(worldPosition Vec2) *Joint {
-        if j.bodyB != nil {
-                j.anchorB = worldPosition.Sub(j.bodyB.position).Rotated(-j.bodyB.rotation)
-        } else {
-                j.anchorB = worldPosition
-        }
-        return j
+	if j.bodyB != nil {
+		j.anchorB = worldPosition.Sub(j.bodyB.position).Rotated(-j.bodyB.rotation)
+	} else {
+		j.anchorB = worldPosition
+	}
+	return j
 }
 
-func (j *Joint) SetRigidity(r float32) *Joint      { j.rigidity = r; return j }
-func (j *Joint) SetLength(l float32) *Joint         { j.length = l; return j }
-func (j *Joint) SetBalance(b float32) *Joint        { j.balance = b; return j }
-func (j *Joint) SetGrooveEnabled(b bool) *Joint     { j.grooveEnabled = b; return j }
-func (j *Joint) SetEnabled(b bool) *Joint           { j.enabled = b; return j }
+func (j *Joint) SetRigidity(r float32) *Joint   { j.rigidity = r; return j }
+func (j *Joint) SetLength(l float32) *Joint     { j.length = l; return j }
+func (j *Joint) SetBalance(b float32) *Joint    { j.balance = b; return j }
+func (j *Joint) SetGrooveEnabled(b bool) *Joint { j.grooveEnabled = b; return j }
+func (j *Joint) SetEnabled(b bool) *Joint       { j.enabled = b; return j }
 
 // SetCollisionEnabled controls whether the jointed bodies collide.
 // When false (default), a collision exception is registered so the bodies
 // pass through each other. Matches QJoint::SetCollisionEnabled in qjoint.cpp:72-82.
 func (j *Joint) SetCollisionEnabled(b bool) *Joint {
-        j.collisionsEnabled = b
-        if j.world != nil && j.bodyA != nil && j.bodyB != nil {
-                if b {
-                        j.world.RemoveCollisionException(j.bodyA.AsBody(), j.bodyB.AsBody())
-                } else {
-                        j.world.AddCollisionException(j.bodyA.AsBody(), j.bodyB.AsBody())
-                }
-        }
-        return j
+	j.collisionsEnabled = b
+	if j.world != nil && j.bodyA != nil && j.bodyB != nil {
+		if b {
+			j.world.RemoveCollisionException(j.bodyA.AsBody(), j.bodyB.AsBody())
+		} else {
+			j.world.AddCollisionException(j.bodyA.AsBody(), j.bodyB.AsBody())
+		}
+	}
+	return j
 }
 
 // Update solves the joint constraint.
-// Matches QJoint::Update in qjoint.cpp:84-201.
 //
 // For each step:
 //  1. Transform anchors from body-local to world-space
@@ -153,102 +150,102 @@ func (j *Joint) SetCollisionEnabled(b bool) *Joint {
 //  4. Apply forces to both bodies proportional to the delta and rigidity
 //  5. Distribute forces based on `balance` (or mass/static status)
 func (j *Joint) Update() {
-        if !j.enabled {
-                return
-        }
-        if j.bodyA == nil && j.bodyB == nil {
-                return
-        }
+	if !j.enabled {
+		return
+	}
+	if j.bodyA == nil && j.bodyB == nil {
+		return
+	}
 
-        // Early-out checks
-        if j.bodyA != nil {
-                if !j.bodyA.enabled {
-                        return
-                }
-                if j.bodyA.mode == BodyModeStatic && j.bodyB == nil {
-                        return
-                }
-        }
-        if j.bodyB != nil {
-                if !j.bodyB.enabled {
-                        return
-                }
-                if j.bodyB.mode == BodyModeStatic && j.bodyA == nil {
-                        return
-                }
-        }
+	// Early-out checks
+	if j.bodyA != nil {
+		if !j.bodyA.enabled {
+			return
+		}
+		if j.bodyA.mode == BodyModeStatic && j.bodyB == nil {
+			return
+		}
+	}
+	if j.bodyB != nil {
+		if !j.bodyB.enabled {
+			return
+		}
+		if j.bodyB.mode == BodyModeStatic && j.bodyA == nil {
+			return
+		}
+	}
 
-        // Force distribution (balance)
-        forceRatioA := j.balance
-        forceRatioB := 1.0 - j.balance
+	// Force distribution (balance)
+	forceRatioA := j.balance
+	forceRatioB := 1.0 - j.balance
 
-        if j.bodyA != nil && j.bodyB != nil {
-                if j.bodyA.mode == BodyModeStatic && j.bodyB.mode == BodyModeStatic {
-                        return
-                }
-                if j.bodyA.mode == BodyModeStatic {
-                        forceRatioA = 0.0
-                        forceRatioB = 1.0
-                }
-                if j.bodyB.mode == BodyModeStatic {
-                        forceRatioA = 1.0
-                        forceRatioB = 0.0
-                }
-        } else {
-                if j.bodyA == nil {
-                        forceRatioA = 0.0
-                        forceRatioB = 1.0
-                }
-                if j.bodyB == nil {
-                        forceRatioA = 1.0
-                        forceRatioB = 0.0
-                }
-        }
+	if j.bodyA != nil && j.bodyB != nil {
+		if j.bodyA.mode == BodyModeStatic && j.bodyB.mode == BodyModeStatic {
+			return
+		}
+		if j.bodyA.mode == BodyModeStatic {
+			forceRatioA = 0.0
+			forceRatioB = 1.0
+		}
+		if j.bodyB.mode == BodyModeStatic {
+			forceRatioA = 1.0
+			forceRatioB = 0.0
+		}
+	} else {
+		if j.bodyA == nil {
+			forceRatioA = 0.0
+			forceRatioB = 1.0
+		}
+		if j.bodyB == nil {
+			forceRatioA = 1.0
+			forceRatioB = 0.0
+		}
+	}
 
-        // Transform anchors to world space
-        var anchorTransformedA, anchorTransformedB Vec2
+	// Transform anchors to world space
+	var anchorTransformedA, anchorTransformedB Vec2
 
-        if j.bodyA != nil {
-                anchorTransformedA = j.anchorA.Rotated(j.bodyA.rotation)
-                j.anchorGlobalA = j.bodyA.position.Add(anchorTransformedA)
-        } else {
-                j.anchorGlobalA = j.anchorA
-        }
+	if j.bodyA != nil {
+		anchorTransformedA = j.anchorA.Rotated(j.bodyA.rotation)
+		j.anchorGlobalA = j.bodyA.position.Add(anchorTransformedA)
+	} else {
+		j.anchorGlobalA = j.anchorA
+	}
 
-        if j.bodyB != nil {
-                anchorTransformedB = j.anchorB.Rotated(j.bodyB.rotation)
-                j.anchorGlobalB = j.bodyB.position.Add(anchorTransformedB)
-        } else {
-                j.anchorGlobalB = j.anchorB
-        }
+	if j.bodyB != nil {
+		anchorTransformedB = j.anchorB.Rotated(j.bodyB.rotation)
+		j.anchorGlobalB = j.bodyB.position.Add(anchorTransformedB)
+	} else {
+		j.anchorGlobalB = j.anchorB
+	}
 
-        // Compute distance delta
-        diff := j.anchorGlobalB.Sub(j.anchorGlobalA)
-        currentDistance := diff.Length()
-        if currentDistance < 1e-6 {
-                return
-        }
-        unit := diff.Div(currentDistance)
-        distanceDelta := j.length - currentDistance
+	// Compute distance delta
+	diff := j.anchorGlobalB.Sub(j.anchorGlobalA)
+	currentDistance := diff.Length()
+	if currentDistance < 1e-6 {
+		return
+	}
+	unit := diff.Div(currentDistance)
+	distanceDelta := j.length - currentDistance
 
-        if distanceDelta == 0.0 {
-                return
-        }
-        // Groove mode: skip if current distance is less than target (pull-only)
-        if j.grooveEnabled && currentDistance < j.length {
-                return
-        }
+	if distanceDelta == 0.0 {
+		return
+	}
+	// Groove mode: skip if current distance is less than target (pull-only)
+	if j.grooveEnabled && currentDistance < j.length {
+		return
+	}
 
-        distanceDeltaVec := unit.Mul(distanceDelta)
-        jointForce := distanceDeltaVec.Mul(j.rigidity)
-        jointForceA := jointForce.Neg().Mul(forceRatioA)
-        jointForceB := jointForce.Mul(forceRatioB)
+	distanceDeltaVec := unit.Mul(distanceDelta)
+	jointForce := distanceDeltaVec.Mul(j.rigidity)
+	jointForceA := jointForce.Neg().Mul(forceRatioA)
+	jointForceB := jointForce.Mul(forceRatioB)
 
-        // Apply forces
-        if j.bodyA != nil && j.bodyA.mode != BodyModeStatic {
-                j.bodyA.ApplyForceAt(jointForceA, anchorTransformedA, true)
-        }
-        if j.bodyB != nil && j.bodyB.mode != BodyModeStatic {
-                j.bodyB.ApplyForceAt(jointForceB, anchorTransformedB, true)
-        }
+	// Apply forces
+	if j.bodyA != nil && j.bodyA.mode != BodyModeStatic {
+		j.bodyA.ApplyForceAt(jointForceA, anchorTransformedA, true)
+	}
+	if j.bodyB != nil && j.bodyB.mode != BodyModeStatic {
+		j.bodyB.ApplyForceAt(jointForceB, anchorTransformedB, true)
+	}
 }

@@ -15,7 +15,7 @@ type BenchmarkBoxesScene struct {
 func NewBenchmarkBoxesScene() *BenchmarkBoxesScene {
 	scene := common.NewScene(1024, 600)
 	scene.Renderer.Antialias = false
-	scene.Renderer.ShowParticles = false
+	scene.Renderer.ShowVertices = false
 
 	// Floor
 	scene.AddStaticRect(512, 550, 960, 64)

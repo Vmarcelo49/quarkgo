@@ -16,6 +16,7 @@ type FrictionsScene struct {
 func NewFrictionsScene() *FrictionsScene {
 	scene := common.NewScene(1024, 600)
 	scene.World.SetSleepingEnabled(false)
+	scene.Renderer.ShowVertices = false
 
 	// Floor
 	floor := scene.AddStaticRect(512, 550, 3000, 64)

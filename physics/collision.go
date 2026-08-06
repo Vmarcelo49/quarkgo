@@ -25,18 +25,9 @@ func GetCollisions(bodyA, bodyB *Body, pool *ContactPool, applyHotSolvers bool) 
 		for _, meshB := range bodyB.meshes {
 			cbA := meshA.CollisionBehavior()
 			cbB := meshB.CollisionBehavior()
-
 			switch {
 			case cbA == CollisionPolygons && cbB == CollisionPolygons:
-				// Polygon vs polygon collision. Uses a vertex-in-polygon +
-				// edge-distance approach that works for BOTH convex and
-				// concave polygons (no sub-convex decomposition needed).
-				//
-				// For each vertex of A inside B: find nearest edge of B,
-				// compute penetration as perpendicular distance.
-				// For each vertex of B inside A: same with A's edges.
-				// Also check edge-edge intersections for edge contacts.
-				contacts = append(contacts, polygonVsPolygonConcave(meshA.polygon, meshB.polygon, pool)...)
+				contacts = append(contacts, polygonVsPolygonParticles(meshA.polygon, meshB.polygon, pool)...)
 			case cbA == CollisionCircles && cbB == CollisionPolygons:
 				contacts = append(contacts, circleVsPolygon(meshA, meshB, pool)...)
 			case cbA == CollisionPolygons && cbB == CollisionCircles:
@@ -183,12 +174,12 @@ func testVertexVsPolygon(vertex *Particle, poly []*Particle, polyPositions []Vec
 	n := len(poly)
 
 	var nearestPolygonParticle *Particle
-	nearestParticlePenetrationSq := float32(MaxWorldSize)
+	nearestParticlePenetrationSq := MaxWorldSize
 	var nearestParticleNormal Vec2
 
 	var nearestEdgeParticles [2]*Particle
-	nearestEdgePenetration := float32(MaxWorldSize)
-	nearestEdgeMinDist := float32(MaxWorldSize)
+	nearestEdgePenetration := MaxWorldSize
+	nearestEdgeMinDist := MaxWorldSize
 	var nearestEdgeNormal Vec2
 
 	for pi := range n {
@@ -406,7 +397,7 @@ func polygonVsPolygonParticles(particlesA, particlesB []*Particle, pool *Contact
 	refPolygonSize := sizeA
 	swapped := false
 
-	minPenetration := float32(MaxWorldSize)
+	minPenetration := MaxWorldSize
 	var refNormal Vec2 // axis with minimum penetration (outward from ref)
 
 	s := 0
@@ -547,7 +538,7 @@ func polygonEdges(poly []*Particle) []edgeInfo {
 // TODO: Check why this is unused, where in the c++ code this was ported from.
 func distanceToPolygon(point Vec2, poly []*Particle) (float32, Vec2) {
 	n := len(poly)
-	bestDepth := float32(-MaxWorldSize)
+	bestDepth := -MaxWorldSize
 	bestNormal := Vec2Zero()
 	for i := range n {
 		p1 := poly[i].GlobalPosition()
@@ -580,7 +571,7 @@ func distanceToPolygon(point Vec2, poly []*Particle) (float32, Vec2) {
 // TODO: Check why this is unused, where in the c++ code this was ported from.
 func findMinPenAxis(refPoly, incidentPoly []*Particle) (normal Vec2, penetration float32, edgeIdx int, ok bool) {
 	n := len(refPoly)
-	bestPen := float32(MaxWorldSize)
+	bestPen := MaxWorldSize
 	bestIdx := 0
 	bestNormal := Vec2Zero()
 
@@ -833,12 +824,12 @@ func circleVsPolygon(circleMesh, polygonMesh *Mesh, pool *ContactPool) []*Contac
 		// Find nearest polygon vertex (for vertex Voronoi region) AND
 		// nearest edge (for edge/inside regions). Matches qcollision.cpp:938-981.
 		var nearestPolygonParticle *Particle
-		nearestParticlePenetrationSq := float32(MaxWorldSize)
+		nearestParticlePenetrationSq := MaxWorldSize
 		var nearestParticleNormal Vec2
 
 		var nearestEdgeParticles [2]*Particle
-		nearestEdgePenetration := float32(MaxWorldSize)
-		nearestEdgeMinDist := float32(MaxWorldSize)
+		nearestEdgePenetration := MaxWorldSize
+		nearestEdgeMinDist := MaxWorldSize
 		var nearestEdgeNormal Vec2
 
 		for pi := range n {
@@ -1111,7 +1102,7 @@ func particlePolygonToPolygon(particlePolygon []*Particle) []Vec2 {
 func findNearestSideOfPolygon(point Vec2, polygonParticles []*Particle, checkSideRange, checkNegativeDistance bool) (int, int) {
 	resA, resB := -1, -1
 	polygonSize := len(polygonParticles)
-	minDistance := float32(MaxWorldSize)
+	minDistance := MaxWorldSize
 	for pi := range polygonSize {
 		npi := (pi + 1) % polygonSize
 		p := polygonParticles[pi]
@@ -1147,7 +1138,7 @@ func findNearestSideOfPolygon(point Vec2, polygonParticles []*Particle, checkSid
 // nearest to `particle` (skipping identity).
 func findNearestParticleOfPolygon(particle *Particle, polygonParticles []*Particle) int {
 	res := 0
-	minDistance := float32(MaxWorldSize)
+	minDistance := MaxWorldSize
 	for i, p := range polygonParticles {
 		if p == particle {
 			continue
@@ -1166,7 +1157,7 @@ func findNearestParticleOfPolygon(particle *Particle, polygonParticles []*Partic
 // TODO: Check why this is unused, where in the c++ code this was ported from.
 func findExtremeParticleOfAxis(polygonParticles []*Particle, axisNormal Vec2) int {
 	res := 0
-	maxDistance := -float32(MaxWorldSize)
+	maxDistance := -MaxWorldSize
 	for i, p := range polygonParticles {
 		proj := p.GlobalPosition().Dot(axisNormal)
 		if proj > maxDistance {

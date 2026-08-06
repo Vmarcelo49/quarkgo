@@ -2,6 +2,8 @@ package physics
 
 import "github.com/chewxy/math32"
 
+const MaxWorldSize float32 = 99999.0
+
 // World manages a physics simulation. Matches QWorld in qworld.h, qworld.cpp.
 //
 // The World owns all bodies, joints, springs, raycasts, and the contact pool.

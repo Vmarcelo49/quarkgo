@@ -23,7 +23,7 @@ type Renderer struct {
 	ShowSprings       bool
 	ShowJoints        bool
 	ShowRaycasts      bool
-	ShowParticles     bool
+	ShowVertices      bool
 	path              vector.Path
 	so                vector.StrokeOptions
 	dpo               vector.DrawPathOptions
@@ -38,7 +38,7 @@ func NewRenderer() *Renderer {
 		ShowSprings:   true,
 		ShowJoints:    true,
 		ShowRaycasts:  true,
-		ShowParticles: true,
+		ShowVertices:  true,
 		path:          vector.Path{},
 		so:            vector.StrokeOptions{},
 		dpo:           vector.DrawPathOptions{},
@@ -49,12 +49,13 @@ func NewRenderer() *Renderer {
 
 var (
 	colorParticle = rgb(202, 158, 219)
+	colorVertex   = rgb(255, 255, 255)
 	colorDynamic  = rgb(48, 182, 3)
 	colorStatic   = rgb(141, 141, 141)
 	colorSoft     = rgb(255, 150, 100)
 	colorArea     = rgb(100, 255, 150)
 	colorBg       = rgb(25, 25, 30)
-	colorSpring   = rgb(95, 127, 98)
+	colorSpring   = rgb(0, 0, 0)
 	colorJoint    = rgb(255, 255, 100)
 	colorRay      = rgb(102, 102, 102)
 	colorRayHit   = rgb(255, 0, 0)
@@ -141,8 +142,20 @@ func (r *Renderer) drawBody(screen *ebiten.Image, body *physics.Body) {
 		r.dpo.ColorScale.ScaleWithColor(clr)
 		vector.FillPath(screen, &r.path, &r.fo, &r.dpo)
 
-		if r.ShowParticles {
-			// // Draw particles
+		// Draw vertices
+		if r.ShowVertices && mesh.ParticleCount() > 1 {
+			for _, p := range mesh.Particles() {
+				pos := p.GlobalPosition()
+				rad := p.Radius()
+				if rad < 1 {
+					rad = 2
+				}
+				vector.FillCircle(screen, pos.X, pos.Y, rad, colorVertex, r.Antialias)
+			}
+		}
+
+		// Draw Particles
+		if mesh.ParticleCount() == 1 {
 			for _, p := range mesh.Particles() {
 				pos := p.GlobalPosition()
 				rad := p.Radius()

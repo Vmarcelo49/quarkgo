@@ -20,6 +20,8 @@ type MixedBodiesScene struct {
 
 func NewMixedBodiesScene() *MixedBodiesScene {
 	scene := common.NewScene(1024, 600)
+	scene.Renderer.ShowVertices = false
+	scene.Renderer.ShowSprings = false
 
 	// Floor
 	floor := scene.AddStaticRect(512, 550, 960, 64)
@@ -47,7 +49,7 @@ func NewMixedBodiesScene() *MixedBodiesScene {
 	// Soft body "QUARK" letters
 	letterFiles := []string{"word_q.qmesh", "word_u.qmesh", "word_a.qmesh", "word_r.qmesh", "word_k.qmesh"}
 	for i, file := range letterFiles {
-		meshes, err := qmesh.LoadFile(filepath.Join("examples", "01_mixed_bodies", file))
+		meshes, err := qmesh.LoadFile(filepath.Join("01_mixed_bodies", file))
 		if err != nil {
 			// Try relative to executable
 			meshes, err = qmesh.LoadFile(file)

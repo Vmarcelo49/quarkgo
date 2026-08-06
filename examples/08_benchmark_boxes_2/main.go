@@ -22,7 +22,7 @@ func NewBenchmarkBoxes2Scene() *BenchmarkBoxes2Scene {
 	scene.Renderer.ShowColliders = false
 	scene.Renderer.ShowJoints = false
 	scene.Renderer.ShowSprings = false
-	scene.Renderer.ShowParticles = false
+	scene.Renderer.ShowVertices = false
 	// Wide floor
 	scene.AddStaticRect(512, 550, 5000, 64)
 

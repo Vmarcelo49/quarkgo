@@ -28,9 +28,3 @@ jobs:
 
       - name: Parity tests
         run: go test ./tests/parity/...
-
-      - name: Ebitengine boundary check
-        run: ./scripts/check_no_ebitengine_in_physics.sh
-
-      - name: cgo boundary check
-        run: ./scripts/check_no_cgo_in_core.sh

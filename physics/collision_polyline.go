@@ -63,7 +63,7 @@ func polylineAndPolygon(polylineParticles, polygonParticles []*Particle, pool *C
 		} else {
 			// Find the nearest intersecting polygon edge (other than the
 			// two edges adjacent to particle p, since those always share p).
-			minDistance := float32(MaxWorldSize)
+			minDistance := MaxWorldSize
 			sia := ni
 			for sia != pi {
 				sib := (sia + 1) % polySize
@@ -324,7 +324,7 @@ func polylineAndPolyline(testPolyline, targetPolyline []*Particle, pool *Contact
 
 			penetration := float32(0)
 			var normal Vec2
-			minDistance := -float32(MaxWorldSize)
+			minDistance := -MaxWorldSize
 
 			for n, side := range nearestSides {
 				sA := side[0]
@@ -375,7 +375,7 @@ func polylineAndPolyline(testPolyline, targetPolyline []*Particle, pool *Contact
 			// Fallback if no side found.
 			if collidedSideIndex == -1 {
 				nearestSides = nearestSides[:0]
-				minDistanceFallback := float32(MaxWorldSize)
+				minDistanceFallback := MaxWorldSize
 				var findedSide [2]*Particle
 				for n := range targetSize {
 					sA := targetPolyline[n]
@@ -440,7 +440,7 @@ func polylineAndPolyline(testPolyline, targetPolyline []*Particle, pool *Contact
 				var contactPenetration float32
 				var contactNormal Vec2
 				var contactPosition Vec2
-				minDistance := float32(MaxWorldSize)
+				minDistance := MaxWorldSize
 
 				for is, side := range nearestSides {
 					s1 := side[0]
@@ -586,7 +586,7 @@ func circleAndPolyline2(circleParticles, polylineParticles []*Particle, pool *Co
 		bisectorRayUnit := GetBisectorUnitVector(prevParticle.GlobalPosition(), pPos, nextParticle.GlobalPosition(), false)
 		bisectorRay := bisectorRayUnit.Mul(32.0)
 
-		minIntersectionSideDistance := float32(MaxWorldSize)
+		minIntersectionSideDistance := MaxWorldSize
 		minIntersectionSideIndex := -1
 		for j := range polygonParticlesSize {
 			sideParticleA := polylineParticles[j]
@@ -699,7 +699,7 @@ func nearestEdgeToPoint(point Vec2, poly []*Particle) (edge [2]*Particle, dist f
 		return [2]*Particle{nil, nil}, MaxWorldSize, Vec2Zero(), false
 	}
 
-	bestDist := float32(MaxWorldSize)
+	bestDist := MaxWorldSize
 	bestEdge := [2]*Particle{nil, nil}
 	bestPos := Vec2Zero()
 

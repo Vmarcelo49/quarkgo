@@ -153,7 +153,7 @@ func raycastToParticles(body *Body, mesh *Mesh, rayPos, rayVec, rayNormal Vec2, 
 	rayUnit := rayVec.Div(rayLen)
 
 	nearFound := false
-	nearDistance := float32(MaxWorldSize)
+	nearDistance := MaxWorldSize
 	nearContactPosition := Vec2Zero()
 	nearContactNormal := Vec2Zero()
 
@@ -234,7 +234,7 @@ func raycastToPolygon(body *Body, mesh *Mesh, rayPos, rayVec, rayNormal Vec2, en
 		return
 	}
 
-	nearDistance := float32(MaxWorldSize)
+	nearDistance := MaxWorldSize
 	nearContactPosition := Vec2Zero()
 	nearContactNormal := Vec2Zero()
 	contactFound := false

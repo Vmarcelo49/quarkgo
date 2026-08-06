@@ -4,6 +4,7 @@ package main
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	"github.com/Vmarcelo49/quarkgo/examples/common"
 	"github.com/Vmarcelo49/quarkgo/ext/platformer"
@@ -12,10 +13,10 @@ import (
 
 type PlatformerScene struct {
 	*common.Scene
-	player *platformer.PlatformerBody
-	mBlock  *physics.RigidBody
+	player                               *platformer.PlatformerBody
+	mBlock                               *physics.RigidBody
 	mBlockStart, mBlockEnd, mBlockTarget physics.Vec2
-	mBlockMoveSpeed float32
+	mBlockMoveSpeed                      float32
 }
 
 func NewPlatformerScene() *PlatformerScene {
@@ -62,7 +63,7 @@ func NewPlatformerScene() *PlatformerScene {
 	// Player
 	ps.player = platformer.New()
 	ps.player.AddMesh(physics.NewRectMesh(physics.Vec2{X: 32, Y: 32}, physics.Vec2Zero(), physics.Vec2Zero()))
-	ps.player.SetPosition(physics.Vec2{X: 303, Y: 450})
+	ps.player.SetPosition(physics.Vec2{X: 600, Y: 200})
 	scene.World.AddRigidBody(&ps.player.RigidBody)
 	ps.player.RegisterPostUpdate()
 
@@ -85,6 +86,12 @@ func NewPlatformerScene() *PlatformerScene {
 }
 
 func (s *PlatformerScene) Update() error {
+
+	// teleport with click
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButton0) {
+		s.player.SetPosition(s.MousePosition(), true)
+	}
+
 	// Player input
 	walkSide := 0
 	if ebiten.IsKeyPressed(ebiten.KeyRight) || ebiten.IsKeyPressed(ebiten.KeyD) {
